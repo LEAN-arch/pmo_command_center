@@ -2,16 +2,17 @@
 """
 This module renders the Cross-Entity Collaboration dashboard. It helps the
 PMO Director track inter-site projects, shared resources, and the exchange
-of best practices with other Werfen entities.
+of best practices with other corporate entities.
 """
 import streamlit as st
 import pandas as pd
 from utils.pmo_session_state_manager import SPMOSessionStateManager
+from datetime import date, timedelta
 
 def render_collaboration_dashboard(ssm: SPMOSessionStateManager):
     """Renders the dashboard for tracking cross-entity collaborations."""
     st.header("🌐 Cross-Entity Collaboration Tracker")
-    st.caption("Monitor inter-site projects, shared resources, and the exchange of best practices with other Werfen entities.")
+    st.caption("Monitor inter-site projects, shared resources, and the exchange of best practices with other corporate entities to leverage enterprise-wide knowledge.")
 
     collaborations = ssm.get_data("collaborations")
     projects = ssm.get_data("projects")
@@ -32,18 +33,18 @@ def render_collaboration_dashboard(ssm: SPMOSessionStateManager):
         use_container_width=True,
         hide_index=True,
         column_config={
-            "name": "Autoimmunity Project",
-            "collaborating_entity": "Collaborating Werfen Entity",
+            "name": st.column_config.TextColumn("Autoimmunity Project", width="large"),
+            "collaborating_entity": st.column_config.TextColumn("Collaborating Entity", width="large"),
             "type": "Collaboration Type",
             "status": "Status",
-            "pm": "NA Project Manager"
+            "pm": st.column_config.TextColumn("NA Project Manager"),
         }
     )
 
     st.divider()
 
     st.subheader("Best Practices Exchange")
-    st.info("This section serves as a repository for best practices shared across Werfen entities, fostering continuous improvement in project management methodology.", icon="🤝")
+    st.info("This section serves as a repository for best practices shared across entities, fostering continuous improvement in project management methodology and technical execution.", icon="🤝")
 
     # This would be powered by a more formal knowledge management system in a real application
     # For the demo, we use markdown to simulate entries.
@@ -58,11 +59,12 @@ def render_collaboration_dashboard(ssm: SPMOSessionStateManager):
     st.divider()
 
     st.subheader("Coordination & Meetings")
-    st.info("Tracking key meetings and decisions related to cross-entity initiatives.", icon="📅")
+    st.info("Tracking key meetings and decisions related to cross-entity initiatives to ensure alignment and accountability.", icon="📅")
     
     # Placeholder for a calendar or meeting notes feature
     st.write({
         "Meeting": ["Quarterly PMO Sync w/ Barcelona", "IVDR Task Force Weekly"],
         "Next Occurrence": [date.today() + timedelta(days=45), date.today() + timedelta(days=4)],
-        "Key Contact": ["Javier Garcia", "Klaus Müller"]
+        "Key Contact (External)": ["Javier Garcia", "Klaus Müller"],
+        "NA Lead": ["David Lee", "Diana Evans"]
     })
