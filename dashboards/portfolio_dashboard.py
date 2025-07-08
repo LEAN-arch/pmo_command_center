@@ -68,7 +68,7 @@ def render_portfolio_dashboard(ssm: SPMOSessionStateManager):
         return f'background-color: {color}; color: white'
 
     st.dataframe(
-        df[['name', 'project_type', 'phase', 'pm', 'health_status', 'regulatory_path']].style.map(color_status, subset=['health_status']), # <--- FIX: Changed .applymap() to .map()
+        df[['name', 'project_type', 'phase', 'pm', 'health_status', 'regulatory_path']].style.map(color_status, subset=['health_status']),
         use_container_width=True,
         hide_index=True,
         column_config={
