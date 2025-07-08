@@ -72,25 +72,25 @@ def main():
             "function": render_portfolio_dashboard,
             "caption": "Executive KPIs & Project Landscape"
         },
-        "Project Deep Dive": {
-            "function": render_project_deep_dive,
-            "caption": "Drill-down into individual project status"
-        },
         "Financial Overview": {
             "function": render_financial_dashboard,
             "caption": "Budget, Actuals, and Variance Analysis"
+        },
+        "Strategic Planning": {
+            "function": render_strategy_dashboard,
+            "caption": "Future Initiatives and Strategic Alignment"
         },
         "Resource Allocation": {
             "function": render_resource_dashboard,
             "caption": "Cross-Functional Allocation & Utilization"
         },
+        "Project Deep Dive": {
+            "function": render_project_deep_dive,
+            "caption": "Drill-down into individual project status"
+        },
         "Risk & QMS Compliance": {
             "function": render_risk_dashboard,
             "caption": "Portfolio Risks and QMS Health Metrics"
-        },
-        "Strategic Planning": {
-            "function": render_strategy_dashboard,
-            "caption": "Future Initiatives and Strategic Alignment"
         },
         "PMO Health & KPIs": {
             "function": render_pmo_health_dashboard,
@@ -118,7 +118,7 @@ def main():
     page_to_render = dashboards[selection]["function"]
     page_to_render(ssm)
 
-    # --- Admin & Settings Footer ---
+    # --- Admin & Settings Footer (Placeholder) ---
     with st.sidebar.expander("⚙️ Admin & Settings"):
         st.info("This area is for administrative functions.")
         if st.button("Force Data Refresh"):
