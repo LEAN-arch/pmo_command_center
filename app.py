@@ -6,7 +6,7 @@ This Streamlit application orchestrates a suite of modular dashboards designed t
 provide comprehensive, strategic oversight of the entire project portfolio. It
 serves as the central hub for the PMO Director to monitor performance, manage
 resources, oversee risk and compliance, and align project execution with
-corporate strategy.
+corporate strategy, enhanced with predictive machine learning capabilities.
 """
 import logging
 import streamlit as st
@@ -15,7 +15,6 @@ import sys
 import pandas as pd
 
 # --- Robust Path Correction ---
-# This ensures that the application can find its own modules when run as a script.
 try:
     current_file_path = os.path.abspath(__file__)
     project_root = os.path.dirname(current_file_path)
@@ -23,10 +22,8 @@ try:
         sys.path.insert(0, project_root)
 except Exception as e:
     st.warning(f"Could not adjust system path. Module imports may fail. Error: {e}")
-# --- End of Path Correction Block ---
 
 # --- Local Application Imports ---
-# Import all dashboard modules. The file names are now valid Python identifiers.
 try:
     from utils.pmo_session_state_manager import SPMOSessionStateManager
     from dashboards.portfolio_dashboard import render_portfolio_dashboard
@@ -39,7 +36,7 @@ try:
     from dashboards.design_control_interface import render_design_control_dashboard
     from dashboards.collaboration_tracker import render_collaboration_dashboard
 except ImportError as e:
-    st.error(f"Fatal Error: A required dashboard module could not be imported: {e}. Please check the file names and paths in the 'dashboards' directory.")
+    st.error(f"Fatal Error: A required dashboard module could not be imported: {e}. Please check file names and paths.")
     logging.critical(f"Fatal module import error: {e}", exc_info=True)
     st.stop()
 
@@ -48,11 +45,10 @@ st.set_page_config(layout="wide", page_title="sPMO Command Center", page_icon="�
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', force=True)
 
 
-# --- Main Application Logic ---
 def main():
     """Main function to configure and run the Streamlit application."""
     st.title("🎯 Autoimmunity Division - sPMO Command Center")
-    st.caption("A Strategic Portfolio Management Dashboard for Executive Oversight")
+    st.caption("A Strategic & Predictive Portfolio Management Dashboard for Executive Oversight")
 
     try:
         ssm = SPMOSessionStateManager()
@@ -62,11 +58,9 @@ def main():
         st.stop()
 
     # --- Sidebar Navigation ---
-    # The navigation order is controlled here, providing a logical flow for the user.
     st.sidebar.image("https://www.werfen.com/corp/werfen-web/themes/werfen/images/logo-werfen-blue.svg", width=200)
     st.sidebar.title("sPMO Workspaces")
 
-    # Define the dashboards and their corresponding render functions and captions
     dashboards = {
         "Portfolio Dashboard": {
             "function": render_portfolio_dashboard,
@@ -86,7 +80,7 @@ def main():
         },
         "Project Deep Dive": {
             "function": render_project_deep_dive,
-            "caption": "Drill-down into individual project status"
+            "caption": "Drill-down with Predictive Risk Analysis"
         },
         "Risk & QMS Compliance": {
             "function": render_risk_dashboard,
@@ -94,19 +88,18 @@ def main():
         },
         "PMO Health & KPIs": {
             "function": render_pmo_health_dashboard,
-            "caption": "Measure PMO process effectiveness"
+            "caption": "Measure PMO Process Effectiveness & Maturity"
         },
         "Design Control Interface": {
             "function": render_design_control_dashboard,
-            "caption": "Monitor QMS & Design Control compliance"
+            "caption": "Monitor QMS & Design Control Compliance"
         },
         "Cross-Entity Collaboration": {
             "function": render_collaboration_dashboard,
-            "caption": "Track inter-site initiatives & best practices"
+            "caption": "Track Inter-site Initiatives & Best Practices"
         },
     }
 
-    # Create the radio button for navigation
     selection = st.sidebar.radio(
         "Navigation",
         list(dashboards.keys()),
@@ -114,15 +107,13 @@ def main():
     )
 
     # --- Main Panel Rendering ---
-    # Call the selected dashboard's render function
     page_to_render = dashboards[selection]["function"]
     page_to_render(ssm)
 
-    # --- Admin & Settings Footer (Placeholder) ---
+    # --- Admin & Settings Footer ---
     with st.sidebar.expander("⚙️ Admin & Settings"):
         st.info("This area is for administrative functions.")
         if st.button("Force Data Refresh"):
-            # A more robust implementation would clear specific session state keys
             st.session_state.clear()
             st.rerun()
             
