@@ -33,7 +33,9 @@ def render_risk_dashboard(ssm: SPMOSessionStateManager):
     # --- Portfolio Risk Matrix ---
     st.subheader("Portfolio Risk Landscape")
     st.info("""
-    This risk matrix plots the most significant risks from across the entire portfolio, consistent with **ISO 14971** (Application of risk management to medical devices).
+    **Definition:** This risk matrix plots the most significant risks from across the entire portfolio, consistent with **ISO 14971** (Application of risk management to medical devices).
+    
+    **Interpretation:**
     - **Top-Right Quadrant:** High-probability, high-impact risks that require immediate executive attention and mitigation strategies.
     - **Bubble Size:** A proxy for the Risk Priority Number (RPN = Probability x Impact).
     """, icon="⚠️")
