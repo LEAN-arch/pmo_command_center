@@ -10,8 +10,8 @@ from utils.pmo_session_state_manager import SPMOSessionStateManager
 
 def render_design_control_dashboard(ssm: SPMOSessionStateManager):
     """Renders the dashboard for monitoring Design Control and QMS compliance."""
-    st.header("📂 Design Control & QMS Interface")
-    st.caption("Monitor portfolio-wide adherence to Design Control procedures (per 21 CFR 820.30) and the status of key QMS documents.")
+    st.header("📂 Design Control Interface")
+    st.caption("Monitor portfolio-wide adherence to Design Control procedures (per **21 CFR 820.30**) and the status of key QMS documents.")
 
     projects = ssm.get_data("projects")
     gates = ssm.get_data("phase_gate_data")
@@ -33,29 +33,32 @@ def render_design_control_dashboard(ssm: SPMOSessionStateManager):
         return
 
     proj_df = pd.DataFrame(projects)
-    gates_df = pd.DataFrame(gates) if gates else pd.DataFrame()
     docs_df = pd.DataFrame(dhf_docs)
 
     # --- Phase-Gate Status Board ---
     st.subheader("Portfolio Phase-Gate Status")
-    st.info("This view tracks the current Design Control phase of each active project, providing a clear picture of the portfolio's maturity.", icon="🚦")
+    st.info("This view tracks the current Design Control phase of each active project, providing a clear picture of the portfolio's maturity and progress through the development lifecycle.", icon="🚦")
 
     # Kanban-style board
-    phases = proj_df['phase'].unique()
+    phases = ['Feasibility', 'Development', 'V&V', 'Remediation'] # Define a logical order
     cols = st.columns(len(phases))
 
     for i, phase in enumerate(phases):
         with cols[i]:
             st.markdown(f"#### {phase}")
+            st.markdown("---")
             projects_in_phase = proj_df[proj_df['phase'] == phase]
-            for _, project in projects_in_phase.iterrows():
-                st.info(f"**{project['id']}**: {project['name']}")
+            if not projects_in_phase.empty:
+                for _, project in projects_in_phase.iterrows():
+                    st.success(f"**{project['id']}**: {project['name']}")
+            else:
+                st.caption("No projects in this phase.")
 
     st.divider()
 
     # --- DHF Document Status per Project ---
     st.subheader("Key DHF Document Status")
-    st.info("This table provides a high-level check on the completeness of critical Design History File (DHF) documentation for each project.", icon="📑")
+    st.info("This table provides a high-level check on the completeness of critical Design History File (DHF) documentation for each project. Missing or non-approved documents in late-stage projects represent a significant compliance risk.", icon="📑")
     
     # Create a pivot table for a clean matrix view
     doc_status_pivot = docs_df.pivot(index='project_id', columns='doc_type', values='status').fillna("N/A")
@@ -66,9 +69,9 @@ def render_design_control_dashboard(ssm: SPMOSessionStateManager):
     # Color-coding for status
     def color_doc_status(val):
         color = 'grey'
-        if val == 'Approved': color = 'green'
-        elif val == 'In Review': color = 'orange'
-        elif val == 'Draft': color = 'blue'
+        if val == 'Approved': color = '#2ca02c' # green
+        elif val == 'In Review': color = '#ff7f0e' # orange
+        elif val == 'Draft': color = '#1f77b4' # blue
         return f'background-color: {color}; color: white;' if val != "N/A" else ''
 
     st.dataframe(
@@ -80,12 +83,4 @@ def render_design_control_dashboard(ssm: SPMOSessionStateManager):
 
     # --- Design Review Action Items (Placeholder) ---
     st.subheader("Open Design Review Actions")
-    st.warning("Feature under construction: This section would aggregate all open action items from formal Design Reviews across the portfolio to identify bottlenecks in decision-making or execution.", icon="🚧")
-    # Example placeholder:
-    st.write({
-        "Project": ["NPD-001", "NPD-002"],
-        "Action Item": ["Finalize V&V Plan", "Resolve firmware integration issue"],
-        "Owner": ["John Smith", "Jane Doe"],
-        "Due Date": [date.today() + timedelta(days=10), date.today() - timedelta(days=5)], # One is overdue
-        "Status": ["Open", "Overdue"]
-    })
+    st.warning("Feature under construction: This section would aggregate all open action items from formal Design Reviews across the portfolio to identify bottlenecks in decision-making or execution. This is critical for ensuring that gate transitions are truly complete.", icon="🚧")
