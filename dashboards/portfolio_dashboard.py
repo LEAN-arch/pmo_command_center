@@ -41,7 +41,9 @@ def render_portfolio_dashboard(ssm: SPMOSessionStateManager):
     # --- Portfolio Bubble Chart ---
     st.subheader("Portfolio Landscape: Strategy vs. Risk")
     st.info("""
-    **How to read this chart:** This is a strategic view of the entire portfolio, balancing project risk against strategic value to the business.
+    **Definition:** This chart provides a strategic view of the entire portfolio, balancing project risk against its strategic value to the business.
+    
+    **Interpretation:**
     - **Top-Left (Green Zone):** High-value, low-risk projects. These are our best investments and should be protected and fully resourced.
     - **Bottom-Right (Red Zone):** Low-value, high-risk projects. These are candidates for re-evaluation, de-scoping, or potential cancellation.
     - **Bubble Size:** Represents the project's total approved budget.
