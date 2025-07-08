@@ -1,4 +1,4 @@
-# pmo_command_center/dashboards/4_resource_allocation.py
+# pmo_command_center/dashboards/resource_allocation.py
 """
 This module renders the Resource Allocation & Capacity Management dashboard.
 It helps the PMO Director visualize resource deployment, identify bottlenecks,
@@ -12,8 +12,8 @@ from utils.plot_utils import create_resource_heatmap
 
 def render_resource_dashboard(ssm: SPMOSessionStateManager):
     """Renders the resource allocation and capacity dashboard."""
-    st.header("👥 Resource Allocation & Capacity Management")
-    st.caption("Analyze resource deployment across the portfolio to identify bottlenecks, manage capacity, and ensure projects are staffed for success.")
+    st.header("👥 Resource Allocation & Capacity")
+    st.caption("This is the **Cross-Functional Allocation & Utilization** dashboard. Analyze resource deployment to identify bottlenecks and coordinate with functional managers.")
 
     allocations = ssm.get_data("allocations")
     resources = ssm.get_data("resources")
@@ -53,7 +53,7 @@ def render_resource_dashboard(ssm: SPMOSessionStateManager):
 
     with viz_tabs[0]:
         st.subheader("Resource Allocation by Function")
-        st.info("This view aggregates hours by role, helping to identify systemic capacity constraints in specific departments (e.g., 'Is RA/QA the bottleneck for all projects?').", icon="🏢")
+        st.info("This view aggregates hours by role, helping to identify systemic capacity constraints in specific departments (e.g., 'Is RA/QA the bottleneck for all projects?'). This is a key input for discussions with functional managers.", icon="🏢")
         
         fig_func = px.bar(
             functional_utilization.sort_values('utilization_pct', ascending=False),
@@ -67,17 +67,27 @@ def render_resource_dashboard(ssm: SPMOSessionStateManager):
 
     with viz_tabs[1]:
         st.subheader("Individual Resource Allocation")
-        st.info("This heatmap shows the weekly hour commitment of each person to each project. Bright red cells indicate individuals who are significantly over-allocated.", icon="🔥")
+        st.info("This heatmap shows the weekly hour commitment of each person to each project. Bright red cells indicate individuals who are significantly over-allocated, posing a risk to multiple projects.", icon="🔥")
         
         fig_heatmap = create_resource_heatmap(alloc_df, utilization_df)
         st.plotly_chart(fig_heatmap, use_container_width=True)
 
         st.subheader("Detailed Individual Utilization")
         st.dataframe(
-            utilization_df[['name', 'role', 'capacity_hours_week', 'allocated_hours_week', 'utilization_pct']],
+            utilization_df[['name', 'role', 'capacity_hours_week', 'allocated_hours_week', 'utilization_pct']].sort_values('utilization_pct', ascending=False),
             use_container_width=True,
             hide_index=True,
             column_config={
-                "utilization_pct": st.column_config.ProgressColumn("Utilization %", format="%.1f%%", min_value=0, max_value=120)
-            }
+                "name": "Resource Name",
+                "role": "Function / Role",
+                "capacity_hours_week": "Capacity (Hrs/Wk)",
+                "allocated_hours_week": "Allocated (Hrs/Wk)",
+                "utilization_pct": st.column_config.ProgressColumn(
+                    "Utilization %",
+                    help="Individual utilization percentage. Over 100% indicates over-allocation.",
+                    format="%.1f%%",
+                    min_value=0,
+                    max_value=120,
+                ),
+            },
         )
