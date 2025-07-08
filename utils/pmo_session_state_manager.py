@@ -148,7 +148,6 @@ def _create_spmo_model(version: float) -> Dict[str, Any]:
             demand = base_demand + trend + seasonality + noise
             resource_demand_history.append({"date": month_date, "role": role, "demand_hours": max(0, demand)})
 
-    # <--- FIX: Corrected the return statement to use locally generated variables ---
     return {
         "data_version": version,
         "strategic_goals": strategic_goals,
@@ -166,8 +165,8 @@ def _create_spmo_model(version: float) -> Dict[str, Any]:
     }
 
 class SPMOSessionStateManager:
-    _PMO_DATA_KEY = "pmo_spmo_data_ml_v6"
-    _CURRENT_DATA_VERSION = 6.0 # ML-Enhanced Overhaul
+    _PMO_DATA_KEY = "pmo_spmo_data_final_v7"
+    _CURRENT_DATA_VERSION = 7.0 # Definitive Commercial Grade Overhaul
 
     def __init__(self):
         session_data = st.session_state.get(self._PMO_DATA_KEY)
