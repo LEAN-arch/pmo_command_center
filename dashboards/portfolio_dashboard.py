@@ -56,15 +56,11 @@ def render_portfolio_dashboard(ssm: SPMOSessionStateManager):
     # --- Project Summary Table ---
     st.subheader("Project Summary Table")
     
-    # Define a function to color the health status for better visibility
     def color_status(status):
         color = 'gray'
-        if status == 'On Track':
-            color = '#2ca02c'
-        elif status == 'Needs Monitoring':
-            color = '#ff7f0e'
-        elif status == 'At Risk':
-            color = '#d62728'
+        if status == 'On Track': color = '#2ca02c'
+        elif status == 'Needs Monitoring': color = '#ff7f0e'
+        elif status == 'At Risk': color = '#d62728'
         return f'background-color: {color}; color: white'
 
     st.dataframe(
