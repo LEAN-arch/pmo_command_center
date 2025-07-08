@@ -1,4 +1,4 @@
-# pmo_command_center/dashboards/3_risk_compliance.py
+# pmo_command_center/dashboards/risk_compliance.py
 """
 This module renders the Risk & QMS Compliance dashboard. It provides a
 portfolio-level view of aggregated project risks and key indicators of
@@ -11,8 +11,8 @@ from utils.pmo_session_state_manager import SPMOSessionStateManager
 
 def render_risk_dashboard(ssm: SPMOSessionStateManager):
     """Renders the portfolio risk and compliance dashboard."""
-    st.header("🛡️ Risk & QMS Compliance Dashboard")
-    st.caption("This dashboard aggregates project-level risks into a portfolio view and monitors key QMS health indicators to ensure regulatory compliance.")
+    st.header("🛡️ Risk & QMS Compliance")
+    st.caption("This is the **Portfolio Risks and QMS Health Metrics** dashboard. Monitor aggregated project risks and key indicators of Quality System health to ensure regulatory compliance.")
 
     project_risks = ssm.get_data("project_risks")
     qms_kpis = ssm.get_data("qms_kpis")
@@ -23,9 +23,9 @@ def render_risk_dashboard(ssm: SPMOSessionStateManager):
     st.info("These metrics provide a snapshot of the overall health of the Quality System, which directly impacts project execution, audit readiness, and regulatory standing.", icon="📋")
     
     kpi_cols = st.columns(4)
-    kpi_cols[0].metric("Open CAPAs", qms_kpis.get("open_capas", 0), help="Corrective and Preventive Actions. High numbers may indicate systemic issues.")
+    kpi_cols[0].metric("Open CAPAs", qms_kpis.get("open_capas", 0), help="Corrective and Preventive Actions per **21 CFR 820.100**. High numbers may indicate systemic issues.")
     kpi_cols[1].metric("Overdue CAPAs", qms_kpis.get("overdue_capas", 0), delta=qms_kpis.get("overdue_capas", 0), delta_color="inverse")
-    kpi_cols[2].metric("Open Internal Audit Findings", qms_kpis.get("internal_audit_findings_open", 0), delta=qms_kpis.get("internal_audit_findings_open", 0), delta_color="inverse")
+    kpi_cols[2].metric("Open Internal Audit Findings", qms_kpis.get("internal_audit_findings_open", 0), delta=qms_kpis.get("internal_audit_findings_open", 0), delta_color="inverse", help="Open findings from internal QMS audits per **21 CFR 820.22**.")
     kpi_cols[3].metric("Overdue Training Records", qms_kpis.get("overdue_training_records", 0), delta=qms_kpis.get("overdue_training_records", 0), delta_color="inverse", help="Ensures staff are qualified for their roles per QMS requirements.")
 
     st.divider()
@@ -33,7 +33,7 @@ def render_risk_dashboard(ssm: SPMOSessionStateManager):
     # --- Portfolio Risk Matrix ---
     st.subheader("Portfolio Risk Landscape")
     st.info("""
-    This risk matrix plots the most significant risks from across the entire portfolio, allowing the PMO Director to identify risk concentrations and trends.
+    This risk matrix plots the most significant risks from across the entire portfolio, consistent with **ISO 14971** (Application of risk management to medical devices).
     - **Top-Right Quadrant:** High-probability, high-impact risks that require immediate executive attention and mitigation strategies.
     - **Bubble Size:** A proxy for the Risk Priority Number (RPN = Probability x Impact).
     """, icon="⚠️")
