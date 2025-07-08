@@ -7,6 +7,7 @@ the completeness of key DHF documents.
 import streamlit as st
 import pandas as pd
 from utils.pmo_session_state_manager import SPMOSessionStateManager
+from datetime import date, timedelta
 
 def render_design_control_dashboard(ssm: SPMOSessionStateManager):
     """Renders the dashboard for monitoring Design Control and QMS compliance."""
@@ -35,7 +36,7 @@ def render_design_control_dashboard(ssm: SPMOSessionStateManager):
     docs_df = pd.DataFrame(dhf_docs)
 
     # --- Phase-Gate Status Board ---
-    st.subheader("Portfolio Phase-Gate Status")
+    st.subheader("Portfolio Phase Status")
     st.info("This view tracks the current Design Control phase of each active project, providing a clear picture of the portfolio's maturity and progress through the development lifecycle.", icon="🚦")
 
     # Kanban-style board
