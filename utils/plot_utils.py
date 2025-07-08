@@ -11,25 +11,42 @@ import pandas as pd
 from datetime import date
 
 def create_portfolio_bubble_chart(df: pd.DataFrame) -> go.Figure:
-    """Creates an interactive bubble chart for the project portfolio."""
+    """
+    Creates an interactive, executive-level bubble chart to visualize the
+    project portfolio based on risk, strategic value, and budget.
+    """
     status_colors = {"On Track": "#2ca02c", "Needs Monitoring": "#ff7f0e", "At Risk": "#d62728", "Completed": "#7f7f7f"}
     fig = px.scatter(
-        df, x="strategic_value", y="risk_score", size="budget_usd", color="health_status",
-        hover_name="name", text="id", size_max=60, color_discrete_map=status_colors,
+        df,
+        x="strategic_value",
+        y="risk_score",
+        size="budget_usd",
+        color="health_status",
+        hover_name="name",
+        text="id",
+        size_max=60,
+        color_discrete_map=status_colors,
         custom_data=['pm', 'phase', 'budget_usd', 'risk_score', 'strategic_value', 'project_type', 'regulatory_path']
     )
     fig.update_traces(
-        hovertemplate="<b>%{hover_name}</b><br>" + "--------------------<br>" +
+        hovertemplate="<b>%{hover_name}</b><br>" +
+                      "--------------------<br>" +
                       "<b>PM:</b> %{customdata[0]} | <b>Phase:</b> %{customdata[1]} | <b>Type:</b> %{customdata[5]}<br>" +
-                      "<b>Budget:</b> $%{customdata[2]:,.0f}<br>" + "<b>Reg. Path:</b> %{customdata[6]}<br>" +
+                      "<b>Budget:</b> $%{customdata[2]:,.0f}<br>" +
+                      "<b>Reg. Path:</b> %{customdata[6]}<br>" +
                       "<b>Risk Score:</b> %{customdata[3]} | <b>Strategic Value:</b> %{customdata[4]}<extra></extra>"
     )
-    fig.update_layout(title="<b>Project Portfolio: Strategic Value vs. Risk</b>", xaxis_title="Strategic Value (Higher is Better)",
-                      yaxis_title="Risk Score (Higher is Worse)", xaxis=dict(range=[0, 10.5], dtick=1),
-                      yaxis=dict(range=[0, 10.5], dtick=1), height=500, legend_title="Health Status")
+    fig.update_layout(
+        title="<b>Project Portfolio: Strategic Value vs. Risk</b>",
+        xaxis_title="Strategic Value (Higher is Better)",
+        yaxis_title="Risk Score (Higher is Worse)",
+        xaxis=dict(range=[0, 10.5], dtick=1),
+        yaxis=dict(range=[0, 10.5], dtick=1),
+        height=500,
+        legend_title="Health Status"
+    )
     return fig
 
-# <--- FIX: The missing function has been restored below ---
 def create_resource_heatmap(df: pd.DataFrame, utilization_df: pd.DataFrame) -> go.Figure:
     """Creates a professional heatmap of resource allocation."""
     pivot_df = df.pivot(index='resource_name', columns='project_id', values='allocated_hours_week').fillna(0)
@@ -62,7 +79,6 @@ def create_resource_heatmap(df: pd.DataFrame, utilization_df: pd.DataFrame) -> g
         yaxis_autorange='reversed'
     )
     return fig
-# <--- END OF FIX ---
 
 def create_gate_variance_plot(df: pd.DataFrame) -> go.Figure:
     """Creates a bar chart showing the variance between planned and actual gate dates."""
@@ -70,16 +86,33 @@ def create_gate_variance_plot(df: pd.DataFrame) -> go.Figure:
     df['planned_date'] = pd.to_datetime(df['planned_date'])
     df['actual_date'] = pd.to_datetime(df['actual_date'])
     df_filtered = df.dropna(subset=['actual_date'])
+
     if df_filtered.empty:
-        return go.Figure().update_layout(title="No completed gates to analyze.", xaxis_visible=False, yaxis_visible=False,
-                                         annotations=[dict(text="No Data", xref="paper", yref="paper", showarrow=False, font=dict(size=20))])
+        fig = go.Figure().update_layout(
+            title="No completed gates to analyze.",
+            xaxis_visible=False, yaxis_visible=False,
+            annotations=[dict(text="No Data", xref="paper", yref="paper", showarrow=False, font=dict(size=20))]
+        )
+        return fig
+
     df_filtered['variance_days'] = (df_filtered['actual_date'] - df_filtered['planned_date']).dt.days
     avg_variance = df_filtered.groupby('gate_name')['variance_days'].mean().reset_index().sort_values('variance_days')
-    fig = px.bar(avg_variance, x='gate_name', y='variance_days', title='Average Gate Schedule Variance (Actual vs. Planned)',
-                 labels={'gate_name': 'Phase Gate', 'variance_days': 'Average Variance (Days)'},
-                 color='variance_days', color_continuous_scale='RdYlGn_r', text='variance_days')
+
+    fig = px.bar(
+        avg_variance,
+        x='gate_name',
+        y='variance_days',
+        title='Average Gate Schedule Variance (Actual vs. Planned)',
+        labels={'gate_name': 'Phase Gate', 'variance_days': 'Average Variance (Days)'},
+        color='variance_days',
+        color_continuous_scale='RdYlGn_r',
+        text='variance_days'
+    )
     fig.update_traces(texttemplate='%{text}d', textposition='outside')
-    fig.update_layout(coloraxis_showscale=False, xaxis={'categoryorder':'total descending'})
+    fig.update_layout(
+        coloraxis_showscale=False,
+        xaxis={'categoryorder':'total descending'}
+    )
     fig.add_hline(y=0, line_width=2, line_dash="dash", line_color="black")
     return fig
 
@@ -87,10 +120,12 @@ def create_financial_burn_chart(df: pd.DataFrame, title: str, anomaly_dates: lis
     """Creates a financial burn chart, with optional markers for anomalies."""
     if df.empty:
         return go.Figure().update_layout(title_text=f"No Financial Data for {title}", xaxis_visible=False, yaxis_visible=False)
+    
     df = df.copy()
     df['date'] = pd.to_datetime(df['date'])
     today = pd.to_datetime(date.today())
     pivot_df = df.pivot_table(index='date', columns='type', values='amount', aggfunc='sum').fillna(0).cumsum().reset_index()
+
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=pivot_df['date'], y=pivot_df.get('Planned', pd.Series(dtype='float64')),
                              mode='lines', name='Planned Burn', line=dict(color='grey', dash='dash')))
@@ -101,8 +136,14 @@ def create_financial_burn_chart(df: pd.DataFrame, title: str, anomaly_dates: lis
         anomaly_df = actuals_to_date[actuals_to_date['date'].isin(pd.to_datetime(anomaly_dates))]
         fig.add_trace(go.Scatter(x=anomaly_df['date'], y=anomaly_df['Actuals'], mode='markers', name='Anomaly Detected',
                                  marker=dict(symbol='x', color='purple', size=12, line=dict(width=2))))
-    fig.update_layout(title=f"<b>{title}</b>", xaxis_title="Date", yaxis_title="Cumulative Spend (USD)",
-                      yaxis_tickformat='$,.0f', legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01))
+
+    fig.update_layout(
+        title=f"<b>{title}</b>",
+        xaxis_title="Date",
+        yaxis_title="Cumulative Spend (USD)",
+        yaxis_tickformat='$,.0f',
+        legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01)
+    )
     return fig
 
 def create_risk_contribution_plot(contribution_df: pd.DataFrame, title: str) -> go.Figure:
