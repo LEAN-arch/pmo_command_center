@@ -84,7 +84,7 @@ def render_strategy_dashboard(ssm: SPMOSessionStateManager):
     st.subheader("New Initiatives Pipeline")
     st.info("This section manages the funnel of new project ideas, from initial concept through feasibility to approval, providing a view into the future portfolio.", icon="🧪")
     
-    st.info("Feature under construction: A full initiatives funnel with business case summaries would be managed here.", icon="🚧")
+    st.info("Feature under construction: A full initiatives funnel with business case summaries and scoring would be managed here.", icon="🚧")
     # In a full app, this would be an editable table or kanban board
     # For now, a placeholder:
     st.write({
