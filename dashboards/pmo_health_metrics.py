@@ -13,7 +13,7 @@ from utils.plot_utils import create_gate_variance_plot
 def render_pmo_health_dashboard(ssm: SPMOSessionStateManager):
     """Renders the dashboard for analyzing PMO process maturity and effectiveness."""
     st.header("📈 PMO Health & KPIs")
-    st.caption("This dashboard analyzes the effectiveness and adherence to the deployed project management methodology, identifying trends to improve PMO maturity.")
+    st.caption("This dashboard provides metrics on PMO process effectiveness, helping to measure and improve the maturity of the project management function.")
 
     gate_data = ssm.get_data("phase_gate_data")
     projects = ssm.get_data("projects")
@@ -27,38 +27,36 @@ def render_pmo_health_dashboard(ssm: SPMOSessionStateManager):
     proj_df = pd.DataFrame(projects)
     risk_df = pd.DataFrame(project_risks) if project_risks else pd.DataFrame()
 
-    # --- PMO Process Control KPIs ---
-    st.subheader("PMO Process Control & Efficiency")
+    # --- PMO Process Control KPIs / CTQs ---
+    st.subheader("PMO Process Control & Efficiency (CTQs)")
+    st.info("These metrics are **Critical-to-Quality (CTQs)** for a high-performing PMO. They measure the predictability and efficiency of the project management methodology.", icon="🎯")
 
     # Gate Adherence
     on_time_gates_pct = 0
-    avg_delay_days = 0
     if not gate_df.empty:
         completed_gates = gate_df.dropna(subset=['actual_date'])
         if not completed_gates.empty:
             on_time_gates = completed_gates[pd.to_datetime(completed_gates['actual_date']) <= pd.to_datetime(completed_gates['planned_date'])]
             on_time_gates_pct = (len(on_time_gates) / len(completed_gates)) * 100
-            
-            late_gates = completed_gates[pd.to_datetime(completed_gates['actual_date']) > pd.to_datetime(completed_gates['planned_date'])]
-            if not late_gates.empty:
-                delay_delta = pd.to_datetime(late_gates['actual_date']) - pd.to_datetime(late_gates['planned_date'])
-                avg_delay_days = delay_delta.mean().days
 
     # Risk Closure Rate
     risk_closure_rate = 0
     if not risk_df.empty:
-        closed_risks = risk_df[risk_df['status'] == 'Closed'] # Assuming 'Closed' is a status
+        # Assuming a risk is "closed" if its status is not one of the active states
+        active_risk_statuses = ["Mitigating", "Monitoring", "Action Plan Dev"]
+        closed_risks = risk_df[~risk_df['status'].isin(active_risk_statuses)]
         risk_closure_rate = (len(closed_risks) / len(risk_df)) * 100
 
     # Budget Variance
-    proj_df['budget_variance_pct'] = ((proj_df['actuals_usd'] - proj_df['budget_usd']) / proj_df['budget_usd']) * 100
-    avg_budget_variance = proj_df[proj_df['health_status'] != 'Completed']['budget_variance_pct'].mean()
+    active_projects = proj_df[proj_df['health_status'] != 'Completed']
+    active_projects['budget_variance_pct'] = ((active_projects['actuals_usd'] - active_projects['budget_usd']) / active_projects['budget_usd']) * 100
+    avg_budget_variance = active_projects['budget_variance_pct'].mean()
 
 
     kpi_cols = st.columns(3)
-    kpi_cols[0].metric("Gate Schedule Adherence", f"{on_time_gates_pct:.1f}%", help="Percentage of completed phase-gates met on or before the planned date.")
-    kpi_cols[1].metric("Avg. Project Budget Variance", f"{avg_budget_variance:.1f}%", help="Average budget variance across all active projects. Negative is over budget.", delta_color="inverse")
-    kpi_cols[2].metric("Risk Closure Rate", f"{risk_closure_rate:.1f}%", help="Percentage of identified risks that have been successfully closed/mitigated.")
+    kpi_cols[0].metric("Gate Schedule Adherence", f"{on_time_gates_pct:.1f}%", help="CTQ for Predictability. The percentage of completed phase-gates met on or before the planned date.")
+    kpi_cols[1].metric("Avg. Project Budget Variance", f"{avg_budget_variance:.1f}%", help="CTQ for Financial Control. The average budget variance across all active projects. Negative is over budget.", delta_color="inverse")
+    kpi_cols[2].metric("Risk Closure Rate", f"{risk_closure_rate:.1f}%", help="CTQ for Proactiveness. The percentage of identified risks that have been successfully closed/mitigated.")
 
     st.divider()
 
