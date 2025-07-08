@@ -44,9 +44,9 @@ def render_resource_dashboard(ssm: SPMOSessionStateManager):
     most_strained_func = functional_utilization.loc[functional_utilization['utilization_pct'].idxmax()]
 
     kpi_cols = st.columns(3)
-    kpi_cols[0].metric("Average Individual Utilization", f"{avg_utilization:.1f}%")
-    kpi_cols[1].metric("Over-Allocated Staff (>100%)", over_allocated_count, delta=over_allocated_count, delta_color="inverse")
-    kpi_cols[2].metric("Most Strained Function", f"{most_strained_func['role']}", f"{most_strained_func['utilization_pct']:.1f}% Utilized")
+    kpi_cols[0].metric("Average Individual Utilization", f"{avg_utilization:.1f}%", help="The average workload across all personnel assigned to projects.")
+    kpi_cols[1].metric("Over-Allocated Staff (>100%)", over_allocated_count, delta=over_allocated_count, delta_color="inverse", help="Number of individuals with allocated hours exceeding their weekly capacity.")
+    kpi_cols[2].metric("Most Strained Function", f"{most_strained_func['role']}", f"{most_strained_func['utilization_pct']:.1f}% Utilized", help="The functional group with the highest overall utilization, indicating a potential portfolio-wide bottleneck.")
 
     # --- Visualizations ---
     viz_tabs = st.tabs(["**Allocation by Function**", "**Allocation by Individual**"])
@@ -61,7 +61,8 @@ def render_resource_dashboard(ssm: SPMOSessionStateManager):
             y=['total_allocated', 'total_capacity'],
             title='Functional Capacity vs. Allocation',
             labels={'role': 'Function / Role', 'value': 'Total Hours per Week'},
-            barmode='group'
+            barmode='group',
+            height=500
         )
         st.plotly_chart(fig_func, use_container_width=True)
 
