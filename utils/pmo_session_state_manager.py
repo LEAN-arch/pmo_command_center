@@ -166,8 +166,8 @@ def _create_spmo_model(version: float) -> Dict[str, Any]:
 
 class SPMOSessionStateManager:
     """Handles the initialization and access of the application's session state."""
-    _PMO_DATA_KEY = "pmo_spmo_data_final"
-    _CURRENT_DATA_VERSION = 5.0 # Final Strategic Overhaul
+    _PMO_DATA_KEY = "pmo_spmo_data_final_v5"
+    _CURRENT_DATA_VERSION = 5.0 # Definitive sPMO Refactor
 
     def __init__(self):
         """Initializes the session state, loading the mock data if necessary."""
