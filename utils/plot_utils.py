@@ -46,7 +46,6 @@ def create_resource_heatmap(df: pd.DataFrame, utilization_df: pd.DataFrame) -> g
     """Creates a heatmap of resource allocation, colored by utilization."""
     pivot_df = df.pivot(index='resource_name', columns='project_id', values='allocated_hours_week').fillna(0)
     
-    # Create hover text with utilization info
     hover_text = []
     for r_name in pivot_df.index:
         row_text = []
@@ -108,37 +107,33 @@ def create_gate_variance_plot(df: pd.DataFrame) -> go.Figure:
     fig.add_hline(y=0, line_width=2, line_dash="dash", line_color="black")
     return fig
 
-def create_financial_burn_chart(df: pd.DataFrame) -> go.Figure:
-    """Creates a financial burn-down/up chart for a project."""
+def create_financial_burn_chart(df: pd.DataFrame, title: str) -> go.Figure:
+    """Creates a financial burn-down/up chart for a project or portfolio."""
     df['date'] = pd.to_datetime(df['date'])
-    pivot_df = df.pivot(index='date', columns='type', values='amount').cumsum().reset_index()
+    
+    # Ensure we only plot up to today for actuals
+    today = pd.to_datetime(date.today())
+    actuals_df = df[df['type'] == 'Actuals'].copy()
+    actuals_df = actuals_df[actuals_df['date'] <= today]
+    
+    pivot_planned = df[df['type'] == 'Planned'].groupby('date')['amount'].sum().cumsum().reset_index()
+    pivot_actuals = actuals_df.groupby('date')['amount'].sum().cumsum().reset_index()
 
     fig = go.Figure()
     fig.add_trace(go.Scatter(
-        x=pivot_df['date'], y=pivot_df['Planned'],
+        x=pivot_planned['date'], y=pivot_planned['amount'],
         mode='lines', name='Planned Burn', line=dict(color='grey', dash='dash')
     ))
     fig.add_trace(go.Scatter(
-        x=pivot_df['date'], y=pivot_df['Actuals'],
+        x=pivot_actuals['date'], y=pivot_actuals['amount'],
         mode='lines', name='Actual Burn', line=dict(color='crimson', width=3)
     ))
 
-    # Add fill for variance
-    fig.add_trace(go.Scatter(
-        x=pivot_df['date'].tolist() + pivot_df['date'].tolist()[::-1],
-        y=pivot_df['Planned'].tolist() + pivot_df['Actuals'].tolist()[::-1],
-        fill='toself',
-        fillcolor='rgba(255,0,0,0.1)',
-        line=dict(color='rgba(255,255,255,0)'),
-        hoverinfo="skip",
-        showlegend=False
-    ))
-
     fig.update_layout(
-        title="<b>Financial Burn: Planned vs. Actual</b>",
+        title=f"<b>{title}</b>",
         xaxis_title="Date",
         yaxis_title="Cumulative Spend (USD)",
-        yaxis_tickprefix="$",
+        yaxis_tickformat='$,.0f',
         legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01)
     )
     return fig
