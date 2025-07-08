@@ -13,18 +13,56 @@ from datetime import date
 def create_portfolio_bubble_chart(df: pd.DataFrame) -> go.Figure:
     """Creates an interactive bubble chart for the project portfolio."""
     status_colors = {"On Track": "#2ca02c", "Needs Monitoring": "#ff7f0e", "At Risk": "#d62728", "Completed": "#7f7f7f"}
-    fig = px.scatter(df, x="strategic_value", y="risk_score", size="budget_usd", color="health_status",
-                     hover_name="name", text="id", size_max=60, color_discrete_map=status_colors,
-                     custom_data=['pm', 'phase', 'budget_usd', 'risk_score', 'strategic_value', 'project_type', 'regulatory_path'])
+    fig = px.scatter(
+        df, x="strategic_value", y="risk_score", size="budget_usd", color="health_status",
+        hover_name="name", text="id", size_max=60, color_discrete_map=status_colors,
+        custom_data=['pm', 'phase', 'budget_usd', 'risk_score', 'strategic_value', 'project_type', 'regulatory_path']
+    )
     fig.update_traces(
         hovertemplate="<b>%{hover_name}</b><br>" + "--------------------<br>" +
                       "<b>PM:</b> %{customdata[0]} | <b>Phase:</b> %{customdata[1]} | <b>Type:</b> %{customdata[5]}<br>" +
                       "<b>Budget:</b> $%{customdata[2]:,.0f}<br>" + "<b>Reg. Path:</b> %{customdata[6]}<br>" +
-                      "<b>Risk Score:</b> %{customdata[3]} | <b>Strategic Value:</b> %{customdata[4]}<extra></extra>")
+                      "<b>Risk Score:</b> %{customdata[3]} | <b>Strategic Value:</b> %{customdata[4]}<extra></extra>"
+    )
     fig.update_layout(title="<b>Project Portfolio: Strategic Value vs. Risk</b>", xaxis_title="Strategic Value (Higher is Better)",
                       yaxis_title="Risk Score (Higher is Worse)", xaxis=dict(range=[0, 10.5], dtick=1),
                       yaxis=dict(range=[0, 10.5], dtick=1), height=500, legend_title="Health Status")
     return fig
+
+# <--- FIX: The missing function has been restored below ---
+def create_resource_heatmap(df: pd.DataFrame, utilization_df: pd.DataFrame) -> go.Figure:
+    """Creates a professional heatmap of resource allocation."""
+    pivot_df = df.pivot(index='resource_name', columns='project_id', values='allocated_hours_week').fillna(0)
+    
+    hover_text = []
+    for r_name in pivot_df.index:
+        row_text = []
+        util_pct = utilization_df.loc[utilization_df['name'] == r_name, 'utilization_pct'].iloc[0]
+        for p_name in pivot_df.columns:
+            alloc_hours = pivot_df.loc[r_name, p_name]
+            row_text.append(f"<b>{r_name} on {p_name}</b><br>Hours: {alloc_hours}<br>Total Utilization: {util_pct:.0f}%")
+        hover_text.append(row_text)
+
+    fig = go.Figure(data=go.Heatmap(
+        z=pivot_df.values,
+        x=pivot_df.columns,
+        y=pivot_df.index,
+        colorscale='Reds',
+        hovertemplate='%{customdata}<extra></extra>',
+        customdata=hover_text,
+        text=pivot_df.values,
+        texttemplate="%{text}"
+    ))
+
+    fig.update_layout(
+        title="<b>Resource Allocation Heatmap (Hours per Week)</b>",
+        xaxis_title="Project ID",
+        yaxis_title="Resource",
+        height=500,
+        yaxis_autorange='reversed'
+    )
+    return fig
+# <--- END OF FIX ---
 
 def create_gate_variance_plot(df: pd.DataFrame) -> go.Figure:
     """Creates a bar chart showing the variance between planned and actual gate dates."""
