@@ -12,10 +12,10 @@ from utils.pmo_session_state_manager import SPMOSessionStateManager
 from utils.plot_utils import create_gate_variance_plot, create_project_cluster_plot
 
 @st.cache_data
-def get_project_clusters(proj_df: pd.DataFrame, n_clusters: int):
+def get_project_clusters(_proj_df: pd.DataFrame, n_clusters: int):
     """Applies K-Means clustering to identify project archetypes."""
     features = ['budget_usd', 'risk_score', 'complexity', 'team_size']
-    df_for_clustering = proj_df[features].copy()
+    df_for_clustering = _proj_df[features].copy()
     
     scaler = StandardScaler()
     scaled_features = scaler.fit_transform(df_for_clustering)
@@ -23,8 +23,8 @@ def get_project_clusters(proj_df: pd.DataFrame, n_clusters: int):
     kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
     kmeans.fit(scaled_features)
     
-    proj_df['cluster'] = kmeans.labels_
-    return proj_df
+    _proj_df['cluster'] = [f"Archetype {i}" for i in kmeans.labels_]
+    return _proj_df
 
 def render_pmo_health_dashboard(ssm: SPMOSessionStateManager):
     """Renders the dashboard for analyzing PMO process maturity and effectiveness."""
@@ -46,7 +46,7 @@ def render_pmo_health_dashboard(ssm: SPMOSessionStateManager):
     with tab1:
         gate_data = ssm.get_data("phase_gate_data")
         gate_df = pd.DataFrame(gate_data) if gate_data else pd.DataFrame()
-        st.info("Tracking gate performance helps identify systemic issues in planning, resource allocation, or risk management that need to be addressed to increase PMO maturity.", icon="📈")
+        st.info("**Definition:** Gate Schedule Variance measures the difference (in days) between the planned and actual completion of a phase-gate. **Interpretation:** Consistently negative (late) variance in a specific gate (e.g., 'Development') can indicate systemic issues like inaccurate planning, resource constraints, or unresolved technical risks in that phase.", icon="📈")
         fig_variance = create_gate_variance_plot(gate_df)
         st.plotly_chart(fig_variance, use_container_width=True)
 
@@ -58,6 +58,7 @@ def render_pmo_health_dashboard(ssm: SPMOSessionStateManager):
                                     title="Project Cycle Time by Type (Concept to Completion)",
                                     labels={'project_type': 'Project Type', 'duration_days': 'Total Duration (Days)'})
             st.plotly_chart(fig_cycle_time, use_container_width=True)
+            st.info("**Definition:** Cycle Time measures the total duration of a project from start to completion. **Interpretation:** Tracking this metric over time allows the Director to measure the impact of process improvements. A decreasing trend indicates increasing PMO efficiency.", icon="⏱️")
         else:
             st.info("No completed projects are available yet to calculate historical cycle times.")
 
@@ -81,18 +82,19 @@ def render_pmo_health_dashboard(ssm: SPMOSessionStateManager):
 
     st.subheader("Analysis of Project Archetypes")
     for i in range(n_clusters):
-        st.markdown(f"#### Archetype {i}")
-        cluster_data = clustered_df[clustered_df['cluster'] == i]
-        avg_risk = cluster_data['risk_score'].mean()
-        avg_budget = cluster_data['budget_usd'].mean()
-        
-        # Calculate success rate for this cluster
-        completed_cluster = cluster_data[cluster_data['final_outcome'].notna()]
-        if not completed_cluster.empty:
-            on_time_rate = (len(completed_cluster[completed_cluster['final_outcome'] == 'On-Time']) / len(completed_cluster)) * 100
-            st.write(f"This archetype consists of **{len(cluster_data)} projects** with an average risk score of **{avg_risk:.1f}** and budget of **${avg_budget:,.0f}**. Historically, projects of this type have had an on-time completion rate of **{on_time_rate:.1f}%**.")
-        else:
-            st.write(f"This archetype consists of **{len(cluster_data)} active projects** with an average risk score of **{avg_risk:.1f}** and budget of **${avg_budget:,.0f}**. No historical data is available for this type yet.")
-        
-        with st.expander(f"View Projects in Archetype {i}"):
-            st.dataframe(cluster_data[['name', 'project_type', 'health_status', 'risk_score', 'budget_usd', 'complexity']], hide_index=True)
+        archetype_name = f"Archetype {i}"
+        with st.container(border=True):
+            st.markdown(f"#### {archetype_name}")
+            cluster_data = clustered_df[clustered_df['cluster'] == archetype_name]
+            avg_risk = cluster_data['risk_score'].mean()
+            avg_budget = cluster_data['budget_usd'].mean()
+            
+            completed_cluster = cluster_data[cluster_data['final_outcome'].notna()]
+            if not completed_cluster.empty:
+                on_time_rate = (len(completed_cluster[completed_cluster['final_outcome'] == 'On-Time']) / len(completed_cluster)) * 100
+                st.write(f"This archetype consists of **{len(cluster_data)} projects** with an average risk score of **{avg_risk:.1f}** and budget of **${avg_budget:,.0f}**. Historically, projects of this type have had an on-time completion rate of **{on_time_rate:.1f}%**.")
+            else:
+                st.write(f"This archetype consists of **{len(cluster_data)} active projects** with an average risk score of **{avg_risk:.1f}** and budget of **${avg_budget:,.0f}**. No historical data is available for this type yet.")
+            
+            with st.expander(f"View Projects in {archetype_name}"):
+                st.dataframe(cluster_data[['name', 'project_type', 'health_status', 'risk_score', 'budget_usd', 'complexity']], hide_index=True)
