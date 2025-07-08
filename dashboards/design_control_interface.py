@@ -2,7 +2,7 @@
 """
 This module renders the Design Control & QMS Interface dashboard. It provides
 a compliance-focused view of the portfolio, tracking phase-gate status and
-linking to key DHF artifacts.
+the completeness of key DHF documents.
 """
 import streamlit as st
 import pandas as pd
@@ -14,7 +14,6 @@ def render_design_control_dashboard(ssm: SPMOSessionStateManager):
     st.caption("Monitor portfolio-wide adherence to Design Control procedures (per **21 CFR 820.30**) and the status of key QMS documents.")
 
     projects = ssm.get_data("projects")
-    gates = ssm.get_data("phase_gate_data")
     # In a real app, this would query a document management system (e.g., Veeva, MasterControl)
     # For this demo, we'll simulate some key documents.
     dhf_docs = [
@@ -40,12 +39,12 @@ def render_design_control_dashboard(ssm: SPMOSessionStateManager):
     st.info("This view tracks the current Design Control phase of each active project, providing a clear picture of the portfolio's maturity and progress through the development lifecycle.", icon="🚦")
 
     # Kanban-style board
-    phases = ['Feasibility', 'Development', 'V&V', 'Remediation'] # Define a logical order
+    phases = ['Feasibility', 'Development', 'V&V', 'Remediation'] # Define a logical order for the columns
     cols = st.columns(len(phases))
 
     for i, phase in enumerate(phases):
         with cols[i]:
-            st.markdown(f"#### {phase}")
+            st.markdown(f"<h5>{phase}</h5>", unsafe_allow_html=True)
             st.markdown("---")
             projects_in_phase = proj_df[proj_df['phase'] == phase]
             if not projects_in_phase.empty:
@@ -64,7 +63,7 @@ def render_design_control_dashboard(ssm: SPMOSessionStateManager):
     doc_status_pivot = docs_df.pivot(index='project_id', columns='doc_type', values='status').fillna("N/A")
     
     # Add project name for readability
-    doc_status_pivot = pd.merge(proj_df[['id', 'name']], doc_status_pivot, left_on='id', right_index=True).set_index('id')
+    doc_status_pivot = pd.merge(proj_df[['id', 'name']], doc_status_pivot, left_on='id', right_index=True).set_index('name')
 
     # Color-coding for status
     def color_doc_status(val):
@@ -75,7 +74,7 @@ def render_design_control_dashboard(ssm: SPMOSessionStateManager):
         return f'background-color: {color}; color: white;' if val != "N/A" else ''
 
     st.dataframe(
-        doc_status_pivot.style.applymap(color_doc_status),
+        doc_status_pivot.style.map(color_doc_status),
         use_container_width=True
     )
 
