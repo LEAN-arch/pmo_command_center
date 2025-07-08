@@ -1,16 +1,19 @@
 # pmo_command_center/utils/plot_utils.py
 """
 Contains reusable, high-level plotting functions for creating the various
-dashboards in the sPMO Command Center.
+dashboards in the sPMO Command Center. This module is designed to produce
+elegant, insightful, and commercial-grade visualizations.
 """
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
-import numpy as np
-from datetime import date # <--- FIX: Added this import to resolve the NameError
+from datetime import date
 
 def create_portfolio_bubble_chart(df: pd.DataFrame) -> go.Figure:
-    """Creates an interactive bubble chart for the project portfolio."""
+    """
+    Creates an interactive, executive-level bubble chart to visualize the
+    project portfolio based on risk, strategic value, and budget.
+    """
     status_colors = {"On Track": "#2ca02c", "Needs Monitoring": "#ff7f0e", "At Risk": "#d62728", "Completed": "#7f7f7f"}
     fig = px.scatter(
         df,
@@ -44,7 +47,7 @@ def create_portfolio_bubble_chart(df: pd.DataFrame) -> go.Figure:
     return fig
 
 def create_resource_heatmap(df: pd.DataFrame, utilization_df: pd.DataFrame) -> go.Figure:
-    """Creates a heatmap of resource allocation, colored by utilization."""
+    """Creates a professional heatmap of resource allocation."""
     pivot_df = df.pivot(index='resource_name', columns='project_id', values='allocated_hours_week').fillna(0)
     
     hover_text = []
@@ -62,19 +65,23 @@ def create_resource_heatmap(df: pd.DataFrame, utilization_df: pd.DataFrame) -> g
         y=pivot_df.index,
         colorscale='Reds',
         hovertemplate='%{customdata}<extra></extra>',
-        customdata=hover_text
+        customdata=hover_text,
+        text=pivot_df.values,
+        texttemplate="%{text}"
     ))
 
     fig.update_layout(
         title="<b>Resource Allocation Heatmap (Hours per Week)</b>",
         xaxis_title="Project ID",
         yaxis_title="Resource",
-        height=500
+        height=500,
+        yaxis_autorange='reversed'
     )
     return fig
 
 def create_gate_variance_plot(df: pd.DataFrame) -> go.Figure:
     """Creates a bar chart showing the variance between planned and actual gate dates."""
+    df = df.copy()
     df['planned_date'] = pd.to_datetime(df['planned_date'])
     df['actual_date'] = pd.to_datetime(df['actual_date'])
     df_filtered = df.dropna(subset=['actual_date'])
@@ -110,24 +117,27 @@ def create_gate_variance_plot(df: pd.DataFrame) -> go.Figure:
 
 def create_financial_burn_chart(df: pd.DataFrame, title: str) -> go.Figure:
     """Creates a financial burn-down/up chart for a project or portfolio."""
-    df = df.copy() # <--- FIX: Added this to prevent SettingWithCopyWarning
+    if df.empty:
+        return go.Figure().update_layout(title_text=f"No Financial Data for {title}", xaxis_visible=False, yaxis_visible=False)
+
+    df = df.copy()
     df['date'] = pd.to_datetime(df['date'])
     
-    # Ensure we only plot up to today for actuals
     today = pd.to_datetime(date.today())
-    actuals_df = df[df['type'] == 'Actuals'].copy()
-    actuals_df = actuals_df[actuals_df['date'] <= today]
     
-    pivot_planned = df[df['type'] == 'Planned'].groupby('date')['amount'].sum().cumsum().reset_index()
-    pivot_actuals = actuals_df.groupby('date')['amount'].sum().cumsum().reset_index()
+    # Cumulative sum for planned and actuals
+    pivot_df = df.pivot_table(index='date', columns='type', values='amount', aggfunc='sum').fillna(0).cumsum().reset_index()
 
     fig = go.Figure()
+    # Plot Planned spend for the full duration
     fig.add_trace(go.Scatter(
-        x=pivot_planned['date'], y=pivot_planned['amount'],
+        x=pivot_df['date'], y=pivot_df.get('Planned', pd.Series(dtype='float64')),
         mode='lines', name='Planned Burn', line=dict(color='grey', dash='dash')
     ))
+    # Plot Actual spend only up to today
+    actuals_to_date = pivot_df[pivot_df['date'] <= today]
     fig.add_trace(go.Scatter(
-        x=pivot_actuals['date'], y=pivot_actuals['amount'],
+        x=actuals_to_date['date'], y=actuals_to_date.get('Actuals', pd.Series(dtype='float64')),
         mode='lines', name='Actual Burn', line=dict(color='crimson', width=3)
     ))
 
