@@ -1,4 +1,8 @@
 # pmo_command_center/utils/plot_utils.py
+"""
+Contains reusable, high-level plotting functions for creating the various
+dashboards in the sPMO Command Center.
+"""
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
@@ -38,30 +42,53 @@ def create_portfolio_bubble_chart(df: pd.DataFrame) -> go.Figure:
     )
     return fig
 
-def create_resource_heatmap(df: pd.DataFrame) -> go.Figure:
-    """Creates a heatmap of resource allocation."""
+def create_resource_heatmap(df: pd.DataFrame, utilization_df: pd.DataFrame) -> go.Figure:
+    """Creates a heatmap of resource allocation, colored by utilization."""
     pivot_df = df.pivot(index='resource_name', columns='project_id', values='allocated_hours_week').fillna(0)
-    fig = px.imshow(
-        pivot_df,
-        text_auto=True,
-        aspect="auto",
-        labels=dict(x="Project", y="Resource", color="Hours/Week"),
-        color_continuous_scale=px.colors.sequential.Reds
-    )
+    
+    # Create hover text with utilization info
+    hover_text = []
+    for r_name in pivot_df.index:
+        row_text = []
+        util_pct = utilization_df.loc[utilization_df['name'] == r_name, 'utilization_pct'].iloc[0]
+        for p_name in pivot_df.columns:
+            alloc_hours = pivot_df.loc[r_name, p_name]
+            row_text.append(f"<b>{r_name} on {p_name}</b><br>Hours: {alloc_hours}<br>Total Utilization: {util_pct:.0f}%")
+        hover_text.append(row_text)
+
+    fig = go.Figure(data=go.Heatmap(
+        z=pivot_df.values,
+        x=pivot_df.columns,
+        y=pivot_df.index,
+        colorscale='Reds',
+        hovertemplate='%{customdata}<extra></extra>',
+        customdata=hover_text
+    ))
+
     fig.update_layout(
         title="<b>Resource Allocation Heatmap (Hours per Week)</b>",
-        height=400,
+        xaxis_title="Project ID",
+        yaxis_title="Resource",
+        height=500
     )
     return fig
 
 def create_gate_variance_plot(df: pd.DataFrame) -> go.Figure:
     """Creates a bar chart showing the variance between planned and actual gate dates."""
+    df['planned_date'] = pd.to_datetime(df['planned_date'])
+    df['actual_date'] = pd.to_datetime(df['actual_date'])
     df_filtered = df.dropna(subset=['actual_date'])
+
     if df_filtered.empty:
-        return go.Figure().update_layout(title="No completed gates to analyze.")
-        
-    df_filtered['variance_days'] = (pd.to_datetime(df_filtered['actual_date']) - pd.to_datetime(df_filtered['planned_date'])).dt.days
-    avg_variance = df_filtered.groupby('gate_name')['variance_days'].mean().reset_index()
+        fig = go.Figure().update_layout(
+            title="No completed gates to analyze.",
+            xaxis_visible=False, yaxis_visible=False,
+            annotations=[dict(text="No Data", xref="paper", yref="paper", showarrow=False, font=dict(size=20))]
+        )
+        return fig
+
+    df_filtered['variance_days'] = (df_filtered['actual_date'] - df_filtered['planned_date']).dt.days
+    avg_variance = df_filtered.groupby('gate_name')['variance_days'].mean().reset_index().sort_values('variance_days')
 
     fig = px.bar(
         avg_variance,
@@ -71,11 +98,47 @@ def create_gate_variance_plot(df: pd.DataFrame) -> go.Figure:
         labels={'gate_name': 'Phase Gate', 'variance_days': 'Average Variance (Days)'},
         color='variance_days',
         color_continuous_scale='RdYlGn_r',
-        text_auto=True
+        text='variance_days'
     )
+    fig.update_traces(texttemplate='%{text}d', textposition='outside')
     fig.update_layout(
         coloraxis_showscale=False,
         xaxis={'categoryorder':'total descending'}
     )
     fig.add_hline(y=0, line_width=2, line_dash="dash", line_color="black")
+    return fig
+
+def create_financial_burn_chart(df: pd.DataFrame) -> go.Figure:
+    """Creates a financial burn-down/up chart for a project."""
+    df['date'] = pd.to_datetime(df['date'])
+    pivot_df = df.pivot(index='date', columns='type', values='amount').cumsum().reset_index()
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=pivot_df['date'], y=pivot_df['Planned'],
+        mode='lines', name='Planned Burn', line=dict(color='grey', dash='dash')
+    ))
+    fig.add_trace(go.Scatter(
+        x=pivot_df['date'], y=pivot_df['Actuals'],
+        mode='lines', name='Actual Burn', line=dict(color='crimson', width=3)
+    ))
+
+    # Add fill for variance
+    fig.add_trace(go.Scatter(
+        x=pivot_df['date'].tolist() + pivot_df['date'].tolist()[::-1],
+        y=pivot_df['Planned'].tolist() + pivot_df['Actuals'].tolist()[::-1],
+        fill='toself',
+        fillcolor='rgba(255,0,0,0.1)',
+        line=dict(color='rgba(255,255,255,0)'),
+        hoverinfo="skip",
+        showlegend=False
+    ))
+
+    fig.update_layout(
+        title="<b>Financial Burn: Planned vs. Actual</b>",
+        xaxis_title="Date",
+        yaxis_title="Cumulative Spend (USD)",
+        yaxis_tickprefix="$",
+        legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01)
+    )
     return fig
