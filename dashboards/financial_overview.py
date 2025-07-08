@@ -33,15 +33,16 @@ def render_financial_dashboard(ssm: SPMOSessionStateManager):
     
     # Calculate portfolio completion vs. budget burn
     proj_df['weighted_completion'] = proj_df['completion_pct'] * proj_df['budget_usd']
-    portfolio_completion_pct = proj_df['weighted_completion'].sum() / total_budget
+    portfolio_completion_pct = (proj_df['weighted_completion'].sum() / total_budget) * 100
     portfolio_burn_pct = (total_actuals / total_budget) * 100
 
     kpi_cols = st.columns(3)
     kpi_cols[0].metric("Total Portfolio Budget", f"${total_budget:,.0f}")
     kpi_cols[1].metric("Total Actuals to Date", f"${total_actuals:,.0f}")
-    kpi_cols[2].metric("Portfolio Variance", f"${portfolio_variance:,.0f}", delta_color="inverse", help="Negative value indicates portfolio is over budget.")
+    kpi_cols[2].metric("Portfolio Variance", f"${portfolio_variance:,.0f}", delta_color="inverse", help="Negative value indicates the portfolio is over budget.")
     
     st.progress(portfolio_burn_pct / 100, text=f"{portfolio_burn_pct:.1f}% Budget Burn vs. {portfolio_completion_pct:.1f}% Weighted Completion")
+    st.caption("The Earned Value of the portfolio is represented by its weighted completion. If Budget Burn is significantly higher than completion, the portfolio may be inefficient.")
 
     st.divider()
 
@@ -67,6 +68,7 @@ def render_financial_dashboard(ssm: SPMOSessionStateManager):
             title='Actual Spend by Category (Portfolio-wide)',
             hole=0.4
         )
+        fig_cat_spend.update_traces(textposition='inside', textinfo='percent+label')
         st.plotly_chart(fig_cat_spend, use_container_width=True)
 
     with col2:
@@ -82,7 +84,9 @@ def render_financial_dashboard(ssm: SPMOSessionStateManager):
             title='Budget Variance by Active Project',
             labels={'name': 'Project', 'variance': 'Variance (USD)'},
             color='variance',
-            color_continuous_scale='RdYlGn_r'
+            color_continuous_scale='RdYlGn_r',
+            text='variance'
         )
-        fig_proj_var.update_layout(coloraxis_showscale=False)
+        fig_proj_var.update_traces(texttemplate='$%{text:,.0f}', textposition='outside')
+        fig_proj_var.update_layout(coloraxis_showscale=False, xaxis_title=None, uniformtext_minsize=8, uniformtext_mode='hide')
         st.plotly_chart(fig_proj_var, use_container_width=True)
