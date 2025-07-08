@@ -7,14 +7,12 @@ and manage the funnel of new initiatives.
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
-
 from utils.pmo_session_state_manager import SPMOSessionStateManager
 
 def render_strategy_dashboard(ssm: SPMOSessionStateManager):
     """Renders the strategic planning and project pipeline dashboard."""
     st.header("🎯 Strategic Planning & Pipeline")
-    st.caption("Align the project portfolio with business strategy, manage the pipeline of new ideas, and visualize the long-term roadmap.")
+    st.caption("This is the **Future Initiatives and Strategic Alignment** dashboard. Align the project portfolio with business strategy and visualize the long-term roadmap.")
 
     projects = ssm.get_data("projects")
     goals = ssm.get_data("strategic_goals")
@@ -28,7 +26,7 @@ def render_strategy_dashboard(ssm: SPMOSessionStateManager):
 
     # --- Strategic Alignment Analysis ---
     st.subheader("Portfolio Alignment to Strategic Goals")
-    st.info("This chart shows how the portfolio's budget is allocated across the company's key strategic objectives. It helps answer: 'Are we putting our money where our strategy is?'", icon="💰")
+    st.info("This chart shows how the portfolio's budget is allocated across the company's key strategic objectives. It helps answer the critical business question: 'Are we putting our money where our strategy is?'", icon="💰")
 
     # Merge data to link projects with goals
     aligned_df = pd.merge(proj_df, goals_df, left_on='strategic_goal_id', right_on='id', how='left')
@@ -43,14 +41,14 @@ def render_strategy_dashboard(ssm: SPMOSessionStateManager):
         title='Portfolio Budget Allocation by Strategic Goal',
         hole=0.4
     )
-    fig_pie.update_traces(textposition='inside', textinfo='percent+label')
+    fig_pie.update_traces(textposition='inside', textinfo='percent+label', sort=False)
     st.plotly_chart(fig_pie, use_container_width=True)
 
     st.divider()
 
     # --- Strategic Roadmap ---
     st.subheader("Strategic Roadmap Timeline")
-    st.info("A high-level Gantt chart visualizing the timeline of major projects, color-coded by the strategic goal they support.", icon="🗺️")
+    st.info("A high-level Gantt chart visualizing the timeline of major projects, color-coded by the strategic goal they support. This is a key tool for long-term planning and executive communication.", icon="🗺️")
 
     # Filter out completed projects for a forward-looking roadmap
     roadmap_df = aligned_df[aligned_df['health_status'] != 'Completed'].copy()
@@ -58,7 +56,7 @@ def render_strategy_dashboard(ssm: SPMOSessionStateManager):
     roadmap_df['end_date'] = pd.to_datetime(roadmap_df['end_date'])
 
     fig_roadmap = px.timeline(
-        roadmap_df,
+        roadmap_df.sort_values('start_date', ascending=False),
         x_start="start_date",
         x_end="end_date",
         y="name",
@@ -77,7 +75,6 @@ def render_strategy_dashboard(ssm: SPMOSessionStateManager):
         yaxis_title="Project",
         legend_title="Strategic Goal",
         height=500,
-        yaxis_autorange='reversed' # Puts earlier projects at the top
     )
     st.plotly_chart(fig_roadmap, use_container_width=True)
 
@@ -85,9 +82,9 @@ def render_strategy_dashboard(ssm: SPMOSessionStateManager):
 
     # --- New Initiatives Funnel (Placeholder for full feature) ---
     st.subheader("New Initiatives Pipeline")
-    st.info("This section would manage the funnel of new project ideas, from initial concept through feasibility to approval, providing a view into the future portfolio.", icon="🧪")
+    st.info("This section manages the funnel of new project ideas, from initial concept through feasibility to approval, providing a view into the future portfolio.", icon="🧪")
     
-    st.info("Feature under construction: A full initiatives funnel would be managed here.", icon="🚧")
+    st.info("Feature under construction: A full initiatives funnel with business case summaries would be managed here.", icon="🚧")
     # In a full app, this would be an editable table or kanban board
     # For now, a placeholder:
     st.write({
