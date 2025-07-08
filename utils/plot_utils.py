@@ -7,6 +7,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
 import numpy as np
+from datetime import date # <--- FIX: Added this import to resolve the NameError
 
 def create_portfolio_bubble_chart(df: pd.DataFrame) -> go.Figure:
     """Creates an interactive bubble chart for the project portfolio."""
@@ -109,6 +110,7 @@ def create_gate_variance_plot(df: pd.DataFrame) -> go.Figure:
 
 def create_financial_burn_chart(df: pd.DataFrame, title: str) -> go.Figure:
     """Creates a financial burn-down/up chart for a project or portfolio."""
+    df = df.copy() # <--- FIX: Added this to prevent SettingWithCopyWarning
     df['date'] = pd.to_datetime(df['date'])
     
     # Ensure we only plot up to today for actuals
