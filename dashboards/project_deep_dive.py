@@ -63,7 +63,7 @@ def render_project_deep_dive(ssm: SPMOSessionStateManager):
             fin_kpi_cols = st.columns(3)
             fin_kpi_cols[0].metric("Total Budget", f"${selected_project['budget_usd']:,.0f}")
             fin_kpi_cols[1].metric("Actuals to Date", f"${selected_project['actuals_usd']:,.0f}")
-            fin_kpi_cols[2].metric("Variance", f"${variance:,.0f}", delta_color="inverse", help="Negative value indicates over budget.")
+            fin_kpi_cols[2].metric("Variance", f"${variance:,.0f}", delta_color="inverse", help="Negative value indicates project is over budget.")
         else:
             st.info("No detailed financial data available for this project.")
 
