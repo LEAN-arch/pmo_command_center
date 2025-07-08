@@ -1,4 +1,20 @@
+# requirements.txt for the sPMO Command Center (ML-Enhanced Version)
+
+# Core application framework
 streamlit
+
+# Data manipulation and analysis
 pandas
 numpy
+
+# Advanced plotting and visualization
 plotly
+
+# Machine Learning & Predictive Models
+# Used for risk prediction, anomaly detection, and clustering
+scikit-learn
+
+# Time-series forecasting for resource management
+# Note: Prophet can have complex dependencies. Installation might require
+# installing build tools depending on your operating system.
+prophet
