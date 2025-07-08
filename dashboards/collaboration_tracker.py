@@ -37,7 +37,7 @@ def render_collaboration_dashboard(ssm: SPMOSessionStateManager):
             "collaborating_entity": st.column_config.TextColumn("Collaborating Entity", width="large"),
             "type": "Collaboration Type",
             "status": "Status",
-            "pm": st.column_config.TextColumn("NA Project Manager"),
+            "pm": st.column_config.TextColumn("NA Project Manager")
         }
     )
 
