@@ -29,7 +29,7 @@ def render_pmo_health_dashboard(ssm: SPMOSessionStateManager):
 
     # --- PMO Process Control KPIs / CTQs ---
     st.subheader("PMO Process Control & Efficiency (CTQs)")
-    st.info("These metrics are **Critical-to-Quality (CTQs)** for a high-performing PMO. They measure the predictability and efficiency of the project management methodology.", icon="🎯")
+    st.info("These metrics are **Critical-to-Quality (CTQs)** for a high-performing PMO. They measure the predictability and efficiency of the project management methodology, providing a basis for continuous improvement.", icon="🎯")
 
     # Gate Adherence
     on_time_gates_pct = 0
@@ -42,15 +42,14 @@ def render_pmo_health_dashboard(ssm: SPMOSessionStateManager):
     # Risk Closure Rate
     risk_closure_rate = 0
     if not risk_df.empty:
-        # Assuming a risk is "closed" if its status is not one of the active states
         active_risk_statuses = ["Mitigating", "Monitoring", "Action Plan Dev"]
         closed_risks = risk_df[~risk_df['status'].isin(active_risk_statuses)]
-        risk_closure_rate = (len(closed_risks) / len(risk_df)) * 100
+        risk_closure_rate = (len(closed_risks) / len(risk_df)) * 100 if not risk_df.empty else 0
 
     # Budget Variance
     active_projects = proj_df[proj_df['health_status'] != 'Completed']
     active_projects['budget_variance_pct'] = ((active_projects['actuals_usd'] - active_projects['budget_usd']) / active_projects['budget_usd']) * 100
-    avg_budget_variance = active_projects['budget_variance_pct'].mean()
+    avg_budget_variance = active_projects['budget_variance_pct'].mean() if not active_projects.empty else 0
 
 
     kpi_cols = st.columns(3)
