@@ -11,20 +11,23 @@ from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.enum.shapes import MSO_SHAPE
 from pptx.dml.color import RGBColor
+from pptx.enum.text import MSO_VERTICAL_ANCHOR  # <-- FIX 1: Import the enumeration
 import pandas as pd
 from datetime import date
 
 def set_cell_text(cell, text, bold=False, font_size=10):
     """Helper function to set text and formatting in a table cell."""
+    # Ensure cell text is cleared before adding new run
+    cell.text_frame.clear()
     p = cell.text_frame.paragraphs[0]
-    run = p.add_run()
-    run.text = str(text)
-    font = run.font
+    p.text = str(text)
+    font = p.font
     font.name = 'Calibri'
     font.size = Pt(font_size)
     font.bold = bold
     font.color.rgb = RGBColor(0, 0, 0)
-    cell.vertical_anchor = 'middle'
+    # <-- FIX 2: Use the correct enumeration member
+    cell.vertical_anchor = MSO_VERTICAL_ANCHOR.MIDDLE
 
 def generate_project_status_report(project_details: dict, financials_df: pd.DataFrame, milestones_df: pd.DataFrame, risks_df: pd.DataFrame) -> io.BytesIO:
     """
@@ -77,7 +80,7 @@ def generate_project_status_report(project_details: dict, financials_df: pd.Data
     status_box.line.fill.background()
 
     # --- Financial Summary Table ---
-    shape = slide.shapes.add_table(4, 2, Inches(0.5), Inches(1.5), Inches(4.5), Inches(2))
+    shape = slide.shapes.add_table(4, 2, Inches(0.5), Inches(1.5), Inches(4.5), Inches(2.2))
     table = shape.table
     table.columns[0].width = Inches(2.5)
     table.columns[1].width = Inches(2.0)
@@ -85,7 +88,6 @@ def generate_project_status_report(project_details: dict, financials_df: pd.Data
     budget = project_details.get('budget_usd', 0)
     actuals = project_details.get('actuals_usd', 0)
     eac = project_details.get('eac_usd', 0) # EAC from our new data model
-    variance = actuals - budget
 
     set_cell_text(table.cell(0, 0), "Financial Summary", bold=True, font_size=14)
     set_cell_text(table.cell(1, 0), "Budget (BAC):", bold=True)
@@ -96,7 +98,7 @@ def generate_project_status_report(project_details: dict, financials_df: pd.Data
     set_cell_text(table.cell(3, 1), f"${eac:,.0f}")
 
     # --- EVM Summary Table ---
-    shape = slide.shapes.add_table(4, 2, Inches(0.5), Inches(3.7), Inches(4.5), Inches(2))
+    shape = slide.shapes.add_table(4, 2, Inches(0.5), Inches(4.0), Inches(4.5), Inches(2.2))
     table = shape.table
     table.columns[0].width = Inches(2.5)
     table.columns[1].width = Inches(2.0)
@@ -124,10 +126,10 @@ def generate_project_status_report(project_details: dict, financials_df: pd.Data
     set_cell_text(table.cell(0, 2), "Status", bold=True)
 
     upcoming_milestones = milestones_df[milestones_df['status'] != 'Completed'].head(4)
-    for i, row in upcoming_milestones.iterrows():
-        set_cell_text(table.cell(i + 1, 0), row['milestone'])
-        set_cell_text(table.cell(i + 1, 1), row['due_date'])
-        set_cell_text(table.cell(i + 1, 2), row['status'])
+    for i, row in enumerate(upcoming_milestones.itertuples()):
+        set_cell_text(table.cell(i + 1, 0), row.milestone)
+        set_cell_text(table.cell(i + 1, 1), row.due_date)
+        set_cell_text(table.cell(i + 1, 2), row.status)
 
     # --- Top Risks Table ---
     shape = slide.shapes.add_table(4, 3, Inches(5.5), Inches(4.7), Inches(10), Inches(2.5))
@@ -140,11 +142,11 @@ def generate_project_status_report(project_details: dict, financials_df: pd.Data
     set_cell_text(table.cell(0, 1), "Owner", bold=True)
     set_cell_text(table.cell(0, 2), "Status", bold=True)
 
-    top_risks = risks_df.sort_values(by='due_date').head(3) # Simple sort, could be by RPN
-    for i, row in top_risks.iterrows():
-        set_cell_text(table.cell(i + 1, 0), row['description'])
-        set_cell_text(table.cell(i + 1, 1), row['owner'])
-        set_cell_text(table.cell(i + 1, 2), row['status'])
+    top_risks = risks_df.sort_values(by='due_date').head(3)
+    for i, row in enumerate(top_risks.itertuples()):
+        set_cell_text(table.cell(i + 1, 0), row.description)
+        set_cell_text(table.cell(i + 1, 1), row.owner)
+        set_cell_text(table.cell(i + 1, 2), row.status)
 
     # Save presentation to a memory buffer
     ppt_buffer = io.BytesIO()
