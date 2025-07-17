@@ -8,8 +8,23 @@ and personnel.
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+from prophet import Prophet
 from utils.pmo_session_state_manager import SPMOSessionStateManager
 from utils.plot_utils import create_financial_burn_chart, create_evm_performance_chart, create_capacity_plan_chart
+
+@st.cache_data
+def get_resource_forecast(_demand_history_df: pd.DataFrame, role: str, periods: int):
+    """Trains a Prophet time-series model and returns a forecast for a specific role."""
+    df_role = _demand_history_df[_demand_history_df['role'] == role].copy()
+    df_prophet = df_role[['date', 'demand_hours']].rename(columns={'date': 'ds', 'demand_hours': 'y'})
+    if len(df_prophet) < 12:
+        return None
+
+    model = Prophet(yearly_seasonality=True, weekly_seasonality=False, daily_seasonality=False, changepoint_prior_scale=0.05)
+    model.fit(df_prophet)
+    future = model.make_future_dataframe(periods=periods, freq='MS')
+    forecast = model.predict(future)
+    return forecast
 
 def render_financial_dashboard(ssm: SPMOSessionStateManager):
     """Renders the portfolio financial analysis and capacity planning dashboard."""
@@ -38,11 +53,9 @@ def render_financial_dashboard(ssm: SPMOSessionStateManager):
         total_budget = proj_df['budget_usd'].sum()
         total_actuals = proj_df['actuals_usd'].sum()
         
-        # Calculate both formula-based and AI-predicted EAC for the portfolio
-        proj_df['formula_eac'] = proj_df.apply(lambda row: row['budget_usd'] / row['cpi'] if row['cpi'] > 0 else row['budget_usd'], axis=1)
+        proj_df['formula_eac'] = proj_df.apply(lambda row: row['budget_usd'] / row['cpi'] if row.get('cpi', 0) > 0 else row['budget_usd'], axis=1)
         portfolio_formula_eac = proj_df['formula_eac'].sum()
         portfolio_predicted_eac = proj_df['predicted_eac_usd'].sum()
-
 
         kpi_cols = st.columns(4)
         kpi_cols[0].metric("Total Portfolio Budget (BAC)", f"${total_budget:,.0f}")
@@ -85,22 +98,11 @@ def render_financial_dashboard(ssm: SPMOSessionStateManager):
         role_to_forecast = st.selectbox("Select a Functional Role to Forecast", options=res_df['role'].unique())
         
         if role_to_forecast:
-            # This would ideally use a more advanced forecasting model from ml_models.py
-            # For simplicity, we keep the original logic here for now.
-            from prophet import Prophet
-            
-            df_role = demand_df[demand_df['role'] == role_to_forecast].copy()
-            df_prophet = df_role[['date', 'demand_hours']].rename(columns={'date': 'ds', 'demand_hours': 'y'})
-            
-            if len(df_prophet) > 12:
-                model = Prophet()
-                model.fit(df_prophet)
-                future = model.make_future_dataframe(periods=12, freq='MS')
-                forecast = model.predict(future)
-                
+            forecast = get_resource_forecast(demand_df, role_to_forecast, 12)
+            if forecast is not None:
                 fig_capacity = create_capacity_plan_chart(forecast, capacity_per_role, role_to_forecast)
                 st.plotly_chart(fig_capacity, use_container_width=True)
-
+                
                 future_demand = forecast[forecast['ds'] > pd.to_datetime('today')].copy()
                 future_demand['gap'] = future_demand['yhat'] - capacity_per_role.get(role_to_forecast, 0)
                 peak_gap = future_demand['gap'].max()
@@ -110,4 +112,4 @@ def render_financial_dashboard(ssm: SPMOSessionStateManager):
                 else:
                     st.success(f"**Sufficient Capacity:** Current capacity for **{role_to_forecast}** appears sufficient.", icon="✅")
             else:
-                st.warning(f"Not enough historical data for '{role_to_forecast}' to generate a forecast.")
+                 st.warning(f"Not enough historical data for '{role_to_forecast}' to generate a reliable forecast.")
