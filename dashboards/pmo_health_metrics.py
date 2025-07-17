@@ -9,7 +9,9 @@ import pandas as pd
 import plotly.express as px
 from utils.pmo_session_state_manager import SPMOSessionStateManager
 from utils.plot_utils import create_gate_variance_plot, create_project_cluster_plot
-from utils.ml_models import get_project_clusters # Uses the centralized model
+from utils.ml_models import get_project_clusters # <-- FIX: This import will now succeed.
+
+# <-- FIX: The local definition of get_project_clusters has been removed. ---
 
 def render_pmo_health_dashboard(ssm: SPMOSessionStateManager):
     """Renders the dashboard for analyzing PMO process maturity and effectiveness."""
@@ -83,7 +85,7 @@ def render_pmo_health_dashboard(ssm: SPMOSessionStateManager):
             fig_cluster = create_project_cluster_plot(clustered_df, x_axis, y_axis)
             st.plotly_chart(fig_cluster, use_container_width=True)
         else:
-            st.warning("Could not generate project clusters. Not enough data.")
+            st.warning("Could not generate project clusters. This may be due to insufficient project data for the selected number of archetypes.")
 
     st.subheader("Analysis of Project Archetypes")
     if clustered_df is not None and 'cluster' in clustered_df.columns:
