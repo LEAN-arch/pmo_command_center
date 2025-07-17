@@ -7,30 +7,9 @@ archetypes, uncovering systemic insights to drive continuous improvement.
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from sklearn.preprocessing import StandardScaler
-from sklearn.cluster import KMeans
 from utils.pmo_session_state_manager import SPMOSessionStateManager
 from utils.plot_utils import create_gate_variance_plot, create_project_cluster_plot
-
-@st.cache_data
-def get_project_clusters(_proj_df: pd.DataFrame, n_clusters: int):
-    """Applies K-Means clustering to identify project archetypes."""
-    features = ['budget_usd', 'risk_score', 'complexity', 'team_size']
-    df_for_clustering = _proj_df[features].copy()
-
-    # Ensure we don't scale an empty dataframe
-    if df_for_clustering.empty:
-        _proj_df['cluster'] = "N/A"
-        return _proj_df
-
-    scaler = StandardScaler()
-    scaled_features = scaler.fit_transform(df_for_clustering)
-
-    kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init='auto')
-    kmeans.fit(scaled_features)
-
-    _proj_df['cluster'] = [f"Archetype {i+1}" for i in kmeans.labels_]
-    return _proj_df
+from utils.ml_models import get_project_clusters # Uses the centralized model
 
 def render_pmo_health_dashboard(ssm: SPMOSessionStateManager):
     """Renders the dashboard for analyzing PMO process maturity and effectiveness."""
@@ -100,49 +79,40 @@ def render_pmo_health_dashboard(ssm: SPMOSessionStateManager):
     clustered_df = get_project_clusters(proj_df, n_clusters)
 
     with col2:
-        fig_cluster = create_project_cluster_plot(clustered_df, x_axis, y_axis)
-        st.plotly_chart(fig_cluster, use_container_width=True)
+        if clustered_df is not None and not clustered_df.empty:
+            fig_cluster = create_project_cluster_plot(clustered_df, x_axis, y_axis)
+            st.plotly_chart(fig_cluster, use_container_width=True)
+        else:
+            st.warning("Could not generate project clusters. Not enough data.")
 
     st.subheader("Analysis of Project Archetypes")
-    for i in range(1, n_clusters + 1):
-        archetype_name = f"Archetype {i}"
-        with st.container(border=True):
-            st.markdown(f"#### {archetype_name}")
-            cluster_data = clustered_df[clustered_df['cluster'] == archetype_name]
-            
-            # --- Deeper Archetype Description ---
-            avg_risk = cluster_data['risk_score'].mean()
-            avg_budget = cluster_data['budget_usd'].mean()
-            avg_complexity = cluster_data['complexity'].mean()
-            common_type = cluster_data['project_type'].mode()[0] if not cluster_data.empty else 'N/A'
+    if clustered_df is not None and 'cluster' in clustered_df.columns:
+        for cluster_name in sorted(clustered_df['cluster'].unique()):
+            with st.container(border=True):
+                st.markdown(f"#### {cluster_name}")
+                cluster_data = clustered_df[clustered_df['cluster'] == cluster_name]
+                
+                avg_risk = cluster_data['risk_score'].mean()
+                avg_budget = cluster_data['budget_usd'].mean()
+                avg_complexity = cluster_data['complexity'].mean()
+                common_type = cluster_data['project_type'].mode()[0] if not cluster_data.empty else 'N/A'
 
-            description = f"These are typically **{common_type}** projects with "
-            if avg_budget > 3_000_000: description += "**large budgets**"
-            else: description += "**moderate budgets**"
-            description += f" (avg ${avg_budget:,.0f}), "
-            if avg_complexity > 3.5: description += "**high complexity**"
-            else: description += "**low-to-moderate complexity**"
-            description += f" (avg {avg_complexity:.1f}), and "
-            if avg_risk > 5: description += "**high inherent risk**"
-            else: description += "**low-to-moderate risk**"
-            description += f" (avg {avg_risk:.1f})."
+                description = f"These are typically **{common_type}** projects with "
+                if avg_budget > 3_000_000: description += "**large budgets**"
+                else: description += "**moderate budgets**"
+                description += f" (avg ${avg_budget:,.0f}), "
+                if avg_complexity > 3.5: description += "**high complexity**"
+                else: description += "**low-to-moderate complexity**"
+                description += f" (avg {avg_complexity:.1f}), and "
+                if avg_risk > 5: description += "**high inherent risk**"
+                else: description += "**low-to-moderate risk**"
+                description += f" (avg {avg_risk:.1f})."
 
-            st.write(description)
-            
-            completed_cluster = cluster_data[cluster_data['final_outcome'].notna()]
-            if not completed_cluster.empty:
-                on_time_rate = (len(completed_cluster[completed_cluster['final_outcome'] == 'On-Time']) / len(completed_cluster)) * 100
-                st.metric(
-                    label="Historical On-Time Completion Rate",
-                    value=f"{on_time_rate:.1f}%",
-                    help="The historical success rate for projects fitting this archetype."
-                )
-            else:
-                st.info("No completed projects of this archetype exist yet for historical analysis.")
-
-            with st.expander(f"View {len(cluster_data)} Projects in {archetype_name}"):
-                st.dataframe(
-                    cluster_data[['name', 'project_type', 'health_status', 'risk_score', 'budget_usd', 'complexity']],
-                    hide_index=True,
-                    use_container_width=True
-                )
+                st.write(description)
+                
+                with st.expander(f"View {len(cluster_data)} Projects in {cluster_name}"):
+                    st.dataframe(
+                        cluster_data[['name', 'project_type', 'health_status', 'risk_score', 'budget_usd', 'complexity']],
+                        hide_index=True,
+                        use_container_width=True
+                    )
