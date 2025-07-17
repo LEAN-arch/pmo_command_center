@@ -62,6 +62,7 @@ def _load_and_process_data() -> Dict[str, Any]:
     This function creates the complete, intelligent data model for the application.
     """
     # 1. Fetch data from all "live" sources using the connector layer
+    # (Code for fetching data from dc... functions remains the same)
     projects = dc.get_projects_from_erp()
     dhf_documents = dc.get_dhf_from_qms()
     financials = dc.get_financials_from_erp()
@@ -77,12 +78,10 @@ def _load_and_process_data() -> Dict[str, Any]:
     change_controls = dc.get_change_controls()
     collaborations = dc.get_collaborations()
     strategic_goals = dc.get_strategic_goals()
-    # NEW data sources for enhanced dashboards
     pmo_team = dc.get_pmo_team_from_hris()
     pmo_department_budget = dc.get_pmo_budget_from_finance()
     process_adherence = dc.get_process_adherence_from_alm()
-
-    # Create master DataFrames
+    
     projects_df = pd.DataFrame(projects)
     dhf_df = pd.DataFrame(dhf_documents)
     
@@ -92,20 +91,27 @@ def _load_and_process_data() -> Dict[str, Any]:
 
     # 3. Enrich Live Data: Apply Calculations and Predictions to Projects
     if not projects_df.empty:
-        # Convert date strings to datetime objects for calculations
         projects_df['start_date'] = pd.to_datetime(projects_df['start_date'])
         projects_df['end_date'] = pd.to_datetime(projects_df['end_date'])
-
-        # Calculate standard EVM metrics first (robustly handling division by zero)
         projects_df['cpi'] = projects_df.apply(lambda row: row['ev_usd'] / row['actuals_usd'] if row['actuals_usd'] > 0 else 1.0, axis=1)
         projects_df['spi'] = projects_df.apply(lambda row: row['ev_usd'] / row['pv_usd'] if row['pv_usd'] > 0 else 1.0, axis=1)
         
-        # Apply ML predictions row by row
-        predictions = projects_df.apply(
+        # --- FIX: Replaced 'result_type=expand' with explicit column assignment for robustness ---
+        # This prevents the AttributeError by guaranteeing column data types.
+        
+        # Step A: Apply the function and get a Series of tuples
+        prediction_results = projects_df.apply(
             lambda row: ml.predict_project_schedule_risk(schedule_risk_model, risk_features, row),
-            axis=1, result_type='expand'
-        )
-        projects_df[['predicted_schedule_risk', 'risk_contributions']] = predictions
+            axis=1
+        ).tolist()
+
+        # Step B: Unzip the list of tuples into two separate lists
+        risk_probabilities, risk_contributions_list = zip(*prediction_results)
+
+        # Step C: Assign the clean lists to the new DataFrame columns
+        projects_df['predicted_schedule_risk'] = risk_probabilities
+        projects_df['risk_contributions'] = risk_contributions_list
+        # --- END FIX ---
         
         projects_df['predicted_eac_usd'] = projects_df.apply(
             lambda row: ml.predict_eac(eac_prediction_model, eac_features, row),
@@ -133,14 +139,13 @@ def _load_and_process_data() -> Dict[str, Any]:
         "change_controls": change_controls,
         "collaborations": collaborations,
         "alerts": alerts,
-        # NEW data for enhanced dashboards
         "pmo_team": pmo_team,
         "pmo_department_budget": pmo_department_budget,
         "process_adherence": process_adherence,
     }
 
 class SPMOSessionStateManager:
-    _PMO_DATA_KEY = "pmo_intelligent_data_v12" # Version updated to reflect new data model
+    _PMO_DATA_KEY = "pmo_intelligent_data_v13" # Version updated to reflect bug fix
     
     def __init__(self):
         """Initializes the session state, loading and processing all data if not already present."""
@@ -163,7 +168,6 @@ class SPMOSessionStateManager:
 
     def _get_sandboxed_projects(self) -> List[Dict[str, Any]]:
         """Applies sandbox actions to a copy of the project data for 'what-if' analysis."""
-        # Ensure we start with the original, unmodified project list from the master data
         original_projects = st.session_state[self._PMO_DATA_KEY]['projects']
         projects_df = pd.DataFrame(original_projects).copy()
         
@@ -173,7 +177,6 @@ class SPMOSessionStateManager:
                 if action['type'] == 'cancel':
                     projects_df = projects_df.drop(idx)
                 elif action['type'] == 'accelerate':
-                    # Simulate a 20% budget increase for acceleration
                     projects_df.loc[idx, 'budget_usd'] *= 1.20 
                     
         return projects_df.to_dict('records')
@@ -183,7 +186,6 @@ class SPMOSessionStateManager:
         current_mode = st.session_state.get('sandbox_mode', False)
         st.session_state['sandbox_mode'] = not current_mode
         if st.session_state['sandbox_mode'] is False:
-            # Reset actions when exiting sandbox to revert to live data view
             st.session_state['sandbox_actions'] = []
             
     def add_sandbox_action(self, action: Dict[str, Any]):
