@@ -51,6 +51,8 @@ def create_portfolio_bubble_chart(df: pd.DataFrame) -> go.Figure:
 
 def create_risk_contribution_plot(contribution_df: pd.DataFrame, title: str) -> go.Figure:
     """Creates an interpretable bar chart for ML risk model contributions."""
+    if contribution_df is None or contribution_df.empty:
+        return go.Figure().update_layout(title_text=f"No Contribution Data for {title}", xaxis_visible=False, yaxis_visible=False)
     df = contribution_df.copy()
     df['color'] = df['contribution'].apply(lambda x: '#d62728' if x > 0 else '#2ca02c')
     fig = px.bar(df.sort_values('contribution'), x='contribution', y='feature', orientation='h',
@@ -90,6 +92,9 @@ def create_financial_burn_chart(df: pd.DataFrame, title: str) -> go.Figure:
 def create_evm_performance_chart(df: pd.DataFrame) -> go.Figure:
     """Creates a bar chart visualizing CPI and SPI for active projects."""
     df_filtered = df[df['health_status'] != 'Completed'].copy()
+    if df_filtered.empty:
+        return go.Figure().update_layout(title_text="No Active Projects for EVM Analysis", xaxis_visible=False, yaxis_visible=False)
+        
     df_filtered['cpi_color'] = df_filtered['cpi'].apply(lambda x: 'green' if x >= 1.0 else 'red')
     df_filtered['spi_color'] = df_filtered['spi'].apply(lambda x: 'green' if x >= 1.0 else 'red')
 
