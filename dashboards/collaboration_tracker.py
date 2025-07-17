@@ -26,7 +26,11 @@ def render_collaboration_dashboard(ssm: SPMOSessionStateManager):
     proj_df = pd.DataFrame(projects)
 
     # Merge project names into collaboration data for a richer view
-    collab_df = pd.merge(collab_df, proj_df[['id', 'name', 'pm']], left_on='project_id', right_on='id', how='left')
+    if not collab_df.empty:
+        collab_df = pd.merge(collab_df, proj_df[['id', 'name', 'pm']], left_on='project_id', right_on='id', how='left')
+    else:
+        st.info("There are currently no active inter-site collaborations logged.")
+        return
 
     st.subheader("Active Inter-Site Collaborations")
     st.dataframe(
