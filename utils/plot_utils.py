@@ -10,7 +10,8 @@ import plotly.graph_objects as go
 import pandas as pd
 from datetime import date
 
-# (Other plotting functions remain the same)
+# --- Portfolio & Project Plots ---
+
 def create_portfolio_bubble_chart(df: pd.DataFrame) -> go.Figure:
     """
     Creates an interactive, executive-level bubble chart to visualize the
@@ -48,68 +49,23 @@ def create_portfolio_bubble_chart(df: pd.DataFrame) -> go.Figure:
     )
     return fig
 
-# --- THE SUBSTANTIALLY IMPROVED EVM CHART FUNCTION ---
-def create_evm_performance_chart(df: pd.DataFrame) -> go.Figure:
-    """
-    Creates a substantially improved bar chart visualizing CPI and SPI for active projects,
-    incorporating best practices for data visualization.
-    """
-    df_filtered = df[df['health_status'] != 'Completed'].copy()
-    if df_filtered.empty:
-        return go.Figure().update_layout(title_text="No Active Projects for EVM Analysis", xaxis_visible=False, yaxis_visible=False)
-
-    # --- 1. Use a more descriptive melted format for easier plotting ---
-    df_melted = df_filtered.melt(
-        id_vars=['name', 'pm', 'budget_usd', 'pv_usd', 'ev_usd', 'actuals_usd'],
-        value_vars=['cpi', 'spi'],
-        var_name='metric',
-        value_name='value'
-    )
-    
-    # --- 2. Create the figure ---
-    fig = px.bar(
-        df_melted,
-        x='name',
-        y='value',
-        color='value',  # --- Improvement: Use continuous color for magnitude ---
-        color_continuous_scale='RdYlGn',
-        color_continuous_midpoint=1.0, # Center the color scale on the target
-        facet_col='metric', # --- Improvement: Separate plots for CPI & SPI for clarity ---
-        text='value',
-        custom_data=['name', 'pm', 'budget_usd', 'pv_usd', 'ev_usd', 'actuals_usd', 'metric', 'value']
-    )
-
-    # --- 3. Substantially enrich the hover template for context ---
-    fig.update_traces(
-        texttemplate='%{value:.2f}',
-        textposition='outside',
-        hovertemplate="<b>%{customdata[0]}</b><br>" +
-                      "--------------------<br>" +
-                      "<b>Project Manager:</b> %{customdata[1]}<br>" +
-                      "<b>Budget (BAC):</b> $%{customdata[2]:,.0f}<br>" +
-                      "--------------------<br>" +
-                      "<b>%{customdata[6].upper()}: %{customdata[7]:.2f}</b><br>" +
-                      "Planned Value (PV): $%{customdata[3]:,.0f}<br>" +
-                      "Earned Value (EV): $%{customdata[4]:,.0f}<br>" +
-                      "Actual Cost (AC): $%{customdata[5]:,.0f}<extra></extra>"
-    )
-
-    # --- 4. Optimize layout for clarity and professionalism ---
-    fig.add_hline(y=1.0, line_dash="dash", line_color="black", line_width=2)
-    fig.update_layout(
-        title_text="<b>Project Performance Analysis (CPI & SPI)</b>",
-        yaxis_title="Performance Index (> 1.0 is Favorable)",
-        xaxis_title=None,
-        coloraxis_showscale=False, # Hide the redundant color bar
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1), # --- Fix: Move legend ---
-        height=500,
-    )
-    fig.update_yaxes(range=[0.7, 1.3]) # --- Improvement: Focus the view around the 1.0 target ---
-    fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[1])) # Clean up facet titles
-    
+# *** FIX: RESTORED THE MISSING FUNCTION ***
+def create_risk_contribution_plot(contribution_df: pd.DataFrame, title: str) -> go.Figure:
+    """Creates an interpretable bar chart for ML risk model contributions."""
+    if contribution_df is None or contribution_df.empty:
+        return go.Figure().update_layout(title_text=f"No Contribution Data for {title}", xaxis_visible=False, yaxis_visible=False)
+    df = contribution_df.copy()
+    df['color'] = df['contribution'].apply(lambda x: '#d62728' if x > 0 else '#2ca02c')
+    fig = px.bar(df.sort_values('contribution'), x='contribution', y='feature', orientation='h',
+                 title=title, labels={'contribution': "Impact on Risk (Log-Odds)", 'feature': 'Risk Factor'},
+                 text='contribution')
+    fig.update_traces(marker_color=df['color'], texttemplate='%{text:.3f}', textposition='outside')
+    fig.update_layout(showlegend=False, yaxis_title=None)
+    fig.add_vline(x=0, line_width=1, line_dash="dash", line_color="black")
     return fig
 
-# (Other plotting functions remain the same)
+# --- Financial & EVM Plots ---
+
 def create_financial_burn_chart(df: pd.DataFrame, title: str) -> go.Figure:
     if df.empty:
         return go.Figure().update_layout(title_text=f"No Financial Data for {title}", xaxis_visible=False, yaxis_visible=False)
@@ -130,6 +86,60 @@ def create_financial_burn_chart(df: pd.DataFrame, title: str) -> go.Figure:
     )
     return fig
 
+def create_evm_performance_chart(df: pd.DataFrame) -> go.Figure:
+    """Creates a substantially improved bar chart visualizing CPI and SPI for active projects."""
+    df_filtered = df[df['health_status'] != 'Completed'].copy()
+    if df_filtered.empty:
+        return go.Figure().update_layout(title_text="No Active Projects for EVM Analysis", xaxis_visible=False, yaxis_visible=False)
+
+    df_melted = df_filtered.melt(
+        id_vars=['name', 'pm', 'budget_usd', 'pv_usd', 'ev_usd', 'actuals_usd'],
+        value_vars=['cpi', 'spi'],
+        var_name='metric',
+        value_name='value'
+    )
+    
+    fig = px.bar(
+        df_melted,
+        x='name',
+        y='value',
+        color='value',
+        color_continuous_scale='RdYlGn',
+        color_continuous_midpoint=1.0,
+        facet_col='metric',
+        text='value',
+        custom_data=['name', 'pm', 'budget_usd', 'pv_usd', 'ev_usd', 'actuals_usd', 'metric', 'value']
+    )
+
+    fig.update_traces(
+        texttemplate='%{value:.2f}',
+        textposition='outside',
+        hovertemplate="<b>%{customdata[0]}</b><br>" +
+                      "--------------------<br>" +
+                      "<b>Project Manager:</b> %{customdata[1]}<br>" +
+                      "<b>Budget (BAC):</b> $%{customdata[2]:,.0f}<br>" +
+                      "--------------------<br>" +
+                      "<b>%{customdata[6].upper()}: %{customdata[7]:.2f}</b><br>" +
+                      "Planned Value (PV): $%{customdata[3]:,.0f}<br>" +
+                      "Earned Value (EV): $%{customdata[4]:,.0f}<br>" +
+                      "Actual Cost (AC): $%{customdata[5]:,.0f}<extra></extra>"
+    )
+
+    fig.add_hline(y=1.0, line_dash="dash", line_color="black", line_width=2)
+    fig.update_layout(
+        title_text="<b>Project Performance Analysis (CPI & SPI)</b>",
+        yaxis_title="Performance Index (> 1.0 is Favorable)",
+        xaxis_title=None,
+        coloraxis_showscale=False,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        height=500,
+    )
+    fig.update_yaxes(range=[0.7, 1.3])
+    fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[1]))
+    
+    return fig
+
+# (Other plotting functions as previously corrected)
 def create_resource_heatmap(pivot_df: pd.DataFrame, utilization_df: pd.DataFrame) -> go.Figure:
     hover_text = []
     for r_name in pivot_df.index:
