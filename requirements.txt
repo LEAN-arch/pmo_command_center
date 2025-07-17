@@ -1,20 +1,26 @@
-# requirements.txt for the sPMO Command Center (ML-Enhanced Version)
+# pmo_command_center/requirements.txt
+#
+# This file lists the required Python packages for the Werfen sPMO Command Center.
+# It is recommended to install these packages in a dedicated virtual environment.
+#
+# To install, run the following command from your terminal:
+# pip install -r requirements.txt
 
-# Core application framework
-streamlit
+# --- Core Application Framework ---
+streamlit==1.33.0
 
-# Data manipulation and analysis
-pandas
-numpy
+# --- Data Manipulation and Numerical Operations ---
+pandas==2.2.1
+numpy==1.26.4
 
-# Advanced plotting and visualization
-plotly
+# --- Machine Learning & Predictive Analytics ---
+# scikit-learn is used for clustering, regression, and anomaly detection.
+scikit-learn==1.4.2
+# prophet is used for time-series forecasting of resource demand.
+prophet==1.1.5
 
-# Machine Learning & Predictive Models
-# Used for risk prediction, anomaly detection, and clustering
-scikit-learn
-
-# Time-series forecasting for resource management
-# Note: Prophet can have complex dependencies. Installation might require
-# installing build tools depending on your operating system.
-prophet
+# --- Visualization & Reporting ---
+# plotly is the primary library for creating interactive charts.
+plotly==5.20.0
+# python-pptx is used for the automated generation of PowerPoint status reports.
+python-pptx==0.6.23
