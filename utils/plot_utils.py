@@ -51,8 +51,8 @@ def create_portfolio_bubble_chart(df: pd.DataFrame) -> go.Figure:
 
 def create_risk_contribution_plot(contribution_df: pd.DataFrame, title: str) -> go.Figure:
     """Creates an interpretable bar chart for ML risk model contributions."""
-    df = contribution_df.copy() # Proactive fix: work on a copy
-    df['color'] = df['contribution'].apply(lambda x: '#d62728' if x > 0 else '#2ca02c') # Red for risk, green for safety
+    df = contribution_df.copy()
+    df['color'] = df['contribution'].apply(lambda x: '#d62728' if x > 0 else '#2ca02c')
     fig = px.bar(df.sort_values('contribution'), x='contribution', y='feature', orientation='h',
                  title=title, labels={'contribution': "Impact on Risk (Log-Odds)", 'feature': 'Risk Factor'},
                  text='contribution')
@@ -61,10 +61,10 @@ def create_risk_contribution_plot(contribution_df: pd.DataFrame, title: str) -> 
     fig.add_vline(x=0, line_width=1, line_dash="dash", line_color="black")
     return fig
 
-# --- Financial & EVM Plots (10++ Enhancement) ---
+# --- Financial & EVM Plots ---
 
-def create_financial_burn_chart(df: pd.DataFrame, title: str, anomaly_dates: list = None) -> go.Figure:
-    """Creates a financial burn chart, with optional markers for anomalies."""
+def create_financial_burn_chart(df: pd.DataFrame, title: str) -> go.Figure:
+    """Creates a financial burn chart."""
     if df.empty:
         return go.Figure().update_layout(title_text=f"No Financial Data for {title}", xaxis_visible=False, yaxis_visible=False)
 
@@ -79,10 +79,6 @@ def create_financial_burn_chart(df: pd.DataFrame, title: str, anomaly_dates: lis
     actuals_to_date = pivot_df[pivot_df['date'] <= today]
     fig.add_trace(go.Scatter(x=actuals_to_date['date'], y=actuals_to_date.get('Actuals', pd.Series(dtype='float64')),
                              mode='lines', name='Actual Burn', line=dict(color='crimson', width=3)))
-    if anomaly_dates:
-        anomaly_df = actuals_to_date[actuals_to_date['date'].isin(pd.to_datetime(anomaly_dates))]
-        fig.add_trace(go.Scatter(x=anomaly_df['date'], y=anomaly_df['Actuals'], mode='markers', name='Anomaly Detected',
-                                 marker=dict(symbol='x', color='purple', size=12, line=dict(width=2))))
 
     fig.update_layout(
         title=f"<b>{title}</b>",
@@ -113,7 +109,7 @@ def create_evm_performance_chart(df: pd.DataFrame) -> go.Figure:
     )
     return fig
 
-# --- Resource & Capacity Plots (10++ Enhancement) ---
+# --- Resource & Capacity Plots ---
 
 def create_resource_heatmap(pivot_df: pd.DataFrame, utilization_df: pd.DataFrame) -> go.Figure:
     """Creates a professional heatmap of resource allocation."""
@@ -138,7 +134,7 @@ def create_resource_heatmap(pivot_df: pd.DataFrame, utilization_df: pd.DataFrame
     )
     return fig
 
-def create_capacity_plan_chart(demand_df: pd.DataFrame, capacity_df: pd.DataFrame, role: str) -> go.Figure:
+def create_capacity_plan_chart(demand_df: pd.DataFrame, capacity_df: pd.Series, role: str) -> go.Figure:
     """Visualizes forecasted demand vs. current capacity for a given role."""
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=demand_df['ds'], y=demand_df['yhat'], mode='lines', name='Forecasted Demand', line=dict(color='crimson', dash='dash')))
@@ -148,7 +144,7 @@ def create_capacity_plan_chart(demand_df: pd.DataFrame, capacity_df: pd.DataFram
                       legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01))
     return fig
 
-# --- Compliance & Governance Plots (10++ Enhancement) ---
+# --- Compliance & Governance Plots ---
 
 def create_dhf_completeness_chart(df: pd.DataFrame) -> go.Figure:
     """Creates a bar chart showing DHF completeness for active projects."""
@@ -165,6 +161,8 @@ def create_dhf_completeness_chart(df: pd.DataFrame) -> go.Figure:
 
 def create_traceability_sankey(df: pd.DataFrame) -> go.Figure:
     """Creates a Sankey diagram to visualize requirements traceability."""
+    if df.empty:
+        return go.Figure().update_layout(title_text="No Traceability Data for this Project", xaxis_visible=False, yaxis_visible=False)
     all_nodes = pd.unique(df[['source', 'target']].values.ravel('K'))
     node_map = {node: i for i, node in enumerate(all_nodes)}
     
@@ -183,10 +181,14 @@ def create_traceability_sankey(df: pd.DataFrame) -> go.Figure:
 
 def create_gate_variance_plot(df: pd.DataFrame) -> go.Figure:
     """Creates a bar chart showing the variance between planned and actual gate dates."""
+    if df.empty:
+        return go.Figure().update_layout(
+            title_text="No completed gates to analyze.", xaxis_visible=False, yaxis_visible=False,
+            annotations=[dict(text="No Data", xref="paper", yref="paper", showarrow=False, font=dict(size=20))]
+        )
     df_copy = df.copy()
     df_copy['planned_date'] = pd.to_datetime(df_copy['planned_date'])
     df_copy['actual_date'] = pd.to_datetime(df_copy['actual_date'])
-    # *** FIX IS HERE: Chain .copy() to prevent the warning ***
     df_filtered = df_copy.dropna(subset=['actual_date']).copy()
 
     if df_filtered.empty:
