@@ -1,4 +1,3 @@
-# pmo_command_center/dashboards/financial_overview.py
 """
 This module renders the Financial & Capacity Planning dashboard. It provides deep
 financial analysis, including Earned Value Management (EVM) metrics, and integrates
@@ -14,15 +13,21 @@ from utils.plot_utils import create_financial_burn_chart, create_evm_performance
 
 @st.cache_data
 def get_resource_forecast(_demand_history_df: pd.DataFrame, role: str, periods: int):
-    """Trains a Prophet time-series model and returns a forecast for a specific role."""
+    """
+    Trains a Prophet time-series model and returns a forecast for a specific role.
+    Caches the forecast result to avoid retraining on every interaction.
+    """
     df_role = _demand_history_df[_demand_history_df['role'] == role].copy()
+    df_role['date'] = pd.to_datetime(df_role['date'])
     df_prophet = df_role[['date', 'demand_hours']].rename(columns={'date': 'ds', 'demand_hours': 'y'})
+    
+    # Prophet requires at least 2 data points, but more is better for a meaningful forecast.
     if len(df_prophet) < 12:
-        return None
+        return None # Not enough historical data for a reliable forecast
 
     model = Prophet(yearly_seasonality=True, weekly_seasonality=False, daily_seasonality=False, changepoint_prior_scale=0.05)
     model.fit(df_prophet)
-    future = model.make_future_dataframe(periods=periods, freq='MS')
+    future = model.make_future_dataframe(periods=periods, freq='MS') # Monthly forecast
     forecast = model.predict(future)
     return forecast
 
@@ -33,8 +38,8 @@ def render_financial_dashboard(ssm: SPMOSessionStateManager):
 
     # --- Data Loading ---
     projects = ssm.get_data("projects")
-    financials = ssm.get_data("financials")
-    resources = ssm.get_data("resources")
+    financials = sm.get_data("financials")
+    resources = ssm.get_data("enterprise_resources")
     demand_history = ssm.get_data("resource_demand_history")
 
     if not projects:
@@ -53,7 +58,11 @@ def render_financial_dashboard(ssm: SPMOSessionStateManager):
         total_budget = proj_df['budget_usd'].sum()
         total_actuals = proj_df['actuals_usd'].sum()
         
-        proj_df['formula_eac'] = proj_df.apply(lambda row: row['budget_usd'] / row['cpi'] if row.get('cpi', 0) > 0 else row['budget_usd'], axis=1)
+        # Calculate EAC using a standard formula as a baseline
+        proj_df['formula_eac'] = proj_df.apply(
+            lambda row: row['budget_usd'] / row['cpi'] if row.get('cpi', 0) > 0 else row['budget_usd'],
+            axis=1
+        )
         portfolio_formula_eac = proj_df['formula_eac'].sum()
         portfolio_predicted_eac = proj_df['predicted_eac_usd'].sum()
 
@@ -64,7 +73,9 @@ def render_financial_dashboard(ssm: SPMOSessionStateManager):
         kpi_cols[3].metric("AI-Predicted EAC", f"${portfolio_predicted_eac:,.0f}", delta=f"${(portfolio_predicted_eac - total_budget):,.0f} vs BAC", delta_color="inverse", help="AI forecast of final cost based on performance and project characteristics.")
 
         st.subheader("Portfolio Financial Burn")
-        fig_portfolio_burn = create_financial_burn_chart(fin_df, "Portfolio Financial Burn")
+        # To create a portfolio burn chart, we aggregate financial data across all projects
+        portfolio_fin_df = fin_df.groupby(['date', 'type'])['amount'].sum().reset_index()
+        fig_portfolio_burn = create_financial_burn_chart(portfolio_fin_df, "Cumulative Portfolio Financial Burn")
         st.plotly_chart(fig_portfolio_burn, use_container_width=True)
 
     # --- Earned Value Management Tab ---
@@ -93,23 +104,27 @@ def render_financial_dashboard(ssm: SPMOSessionStateManager):
         demand_df = pd.DataFrame(demand_history)
         res_df = pd.DataFrame(resources)
         
+        # Calculate total capacity per role in hours per month (avg 4.33 weeks/month)
         capacity_per_role = res_df.groupby('role')['capacity_hours_week'].sum() * 4.33
         
-        role_to_forecast = st.selectbox("Select a Functional Role to Forecast", options=res_df['role'].unique())
+        role_to_forecast = st.selectbox("Select a Functional Role to Forecast", options=sorted(res_df['role'].unique()))
         
         if role_to_forecast:
-            forecast = get_resource_forecast(demand_df, role_to_forecast, 12)
+            with st.spinner(f"Generating 12-month demand forecast for {role_to_forecast}..."):
+                forecast = get_resource_forecast(demand_df, role_to_forecast, 12)
+            
             if forecast is not None:
                 fig_capacity = create_capacity_plan_chart(forecast, capacity_per_role, role_to_forecast)
                 st.plotly_chart(fig_capacity, use_container_width=True)
                 
+                # Analyze the forecast to find the biggest future gap
                 future_demand = forecast[forecast['ds'] > pd.to_datetime('today')].copy()
                 future_demand['gap'] = future_demand['yhat'] - capacity_per_role.get(role_to_forecast, 0)
                 peak_gap = future_demand['gap'].max()
 
                 if peak_gap > 0:
-                    st.error(f"**Projected Shortfall:** A peak resource gap of **{peak_gap:,.0f} hours/month** is predicted for **{role_to_forecast}**.", icon="🚨")
+                    st.error(f"**Projected Shortfall:** A peak resource gap of **{peak_gap:,.0f} hours/month** is predicted for **{role_to_forecast}**. Proactive hiring or contractor engagement may be required.", icon="🚨")
                 else:
-                    st.success(f"**Sufficient Capacity:** Current capacity for **{role_to_forecast}** appears sufficient.", icon="✅")
+                    st.success(f"**Sufficient Capacity:** Current capacity for **{role_to_forecast}** appears sufficient to meet forecasted demand.", icon="✅")
             else:
-                 st.warning(f"Not enough historical data for '{role_to_forecast}' to generate a reliable forecast.")
+                 st.warning(f"Not enough historical data for '{role_to_forecast}' to generate a reliable forecast. At least 12 months of data is recommended.")
