@@ -9,9 +9,7 @@ import pandas as pd
 import plotly.express as px
 from utils.pmo_session_state_manager import SPMOSessionStateManager
 from utils.plot_utils import create_gate_variance_plot, create_project_cluster_plot
-from utils.ml_models import get_project_clusters # <-- FIX: This import will now succeed.
-
-# <-- FIX: The local definition of get_project_clusters has been removed. ---
+from utils.ml_models import get_project_clusters
 
 def render_pmo_health_dashboard(ssm: SPMOSessionStateManager):
     """Renders the dashboard for analyzing PMO process maturity and effectiveness."""
