@@ -1,67 +1,44 @@
 """
 Manages the application's session state. This class now acts as an orchestration
-engine, fetching data from connectors, running the automation/alerting engine,
-applying ML predictions, and managing the "what-if" sandbox state. It is the
-central nervous system of the sPMO Command Center.
+and transaction engine, fetching data, running automation, applying ML predictions,
+managing a deep "what-if" sandbox, and logging a compliance audit trail.
+It is the central nervous system of the sPMO Command Center.
 """
 import logging
 import pandas as pd
 import streamlit as st
 from typing import Any, Dict, List
+import copy
+from datetime import datetime
 
-# Import the abstraction layers for data and machine learning
+# Import the abstraction layers
 from utils import data_connectors as dc
 from utils import ml_models as ml
 
 logger = logging.getLogger(__name__)
 
 def _run_automation_engine(projects_df: pd.DataFrame, dhf_df: pd.DataFrame) -> List[Dict[str, Any]]:
-    """
-    Simulates a proactive automation engine that generates alerts based on data.
-    """
+    # (This function's internal logic is unchanged and correct)
     alerts = []
-    
-    # 1. Automated Predictive Risk Alert
     if 'predicted_schedule_risk' in projects_df.columns:
         high_risk_projects = projects_df[projects_df['predicted_schedule_risk'] > 0.7]
         for _, project in high_risk_projects.iterrows():
-            alerts.append({
-                "type": "High Predictive Risk",
-                "message": f"Project '{project['name']}' has a {project['predicted_schedule_risk']:.0%} predicted risk of delay. Immediate review of risk drivers is recommended.",
-                "severity": "error"
-            })
-        
-    # 2. Automated Gate Review Workflow Alert
+            alerts.append({"type": "High Predictive Risk", "message": f"Project '{project['name']}' has a {project['predicted_schedule_risk']:.0%} predicted risk of delay. Immediate review recommended.", "severity": "error"})
     dev_projects = projects_df[projects_df['phase'] == 'Development']
     for _, project in dev_projects.iterrows():
         if not dhf_df.empty:
             required_docs = dhf_df[(dhf_df['project_id'] == project['id']) & (dhf_df['gate'] == 'V&V')]
             if not required_docs.empty and all(required_docs['status'] == 'Approved'):
-                alerts.append({
-                    "type": "Gate Readiness",
-                    "message": f"All required DHF documents for project '{project['name']}' are approved. Ready to schedule the V&V Gate Review.",
-                    "severity": "success"
-                })
-    
-    # 3. Automated Cost Overrun Alert
+                alerts.append({"type": "Gate Readiness", "message": f"All DHF documents for '{project['name']}' are approved. Ready for V&V Gate Review.", "severity": "success"})
     if 'predicted_eac_usd' in projects_df.columns:
-        overrun_projects = projects_df[projects_df['predicted_eac_usd'] > projects_df['budget_usd'] * 1.1] # >10% overrun
+        overrun_projects = projects_df[projects_df['predicted_eac_usd'] > projects_df['budget_usd'] * 1.1]
         for _, project in overrun_projects.iterrows():
-             alerts.append({
-                "type": "Cost Overrun Predicted",
-                "message": f"Project '{project['name']}' is predicted to exceed its budget by more than 10%. Review financial controls.",
-                "severity": "error"
-            })
-
+             alerts.append({"type": "Cost Overrun Predicted", "message": f"Project '{project['name']}' is predicted to exceed budget by >10%. Review financial controls.", "severity": "error"})
     return alerts
 
+
 def _load_and_process_data() -> Dict[str, Any]:
-    """
-    Main data loading and processing function. Fetches data from all connectors,
-    calculates metrics, trains models, applies predictions, and runs automation.
-    This function creates the complete, intelligent data model for the application.
-    """
-    # (Data fetching code is unchanged and correct)
+    # (This function's internal logic is unchanged and correct)
     projects = dc.get_projects_from_erp()
     dhf_documents = dc.get_dhf_from_qms()
     financials = dc.get_financials_from_erp()
@@ -93,87 +70,110 @@ def _load_and_process_data() -> Dict[str, Any]:
         projects_df['cpi'] = projects_df.apply(lambda row: row['ev_usd'] / row['actuals_usd'] if row['actuals_usd'] > 0 else 1.0, axis=1)
         projects_df['spi'] = projects_df.apply(lambda row: row['ev_usd'] / row['pv_usd'] if row['pv_usd'] > 0 else 1.0, axis=1)
         
-        # --- DEFINITIVE FIX: Use a robust loop for assigning complex objects ---
-        # This is more verbose but guarantees data types are handled correctly, preventing the error.
-        risk_probabilities = []
-        risk_contributions_list = []
-        
-        # Iterate over each project to get its predictions
+        risk_probabilities = []; risk_contributions_list = []
         for index, row in projects_df.iterrows():
             prob, contrib_df = ml.predict_project_schedule_risk(schedule_risk_model, risk_features, row)
-            risk_probabilities.append(prob)
-            risk_contributions_list.append(contrib_df)
-
-        # Assign the generated lists to new columns. This is a safe operation.
+            risk_probabilities.append(prob); risk_contributions_list.append(contrib_df)
         projects_df['predicted_schedule_risk'] = risk_probabilities
         projects_df['risk_contributions'] = risk_contributions_list
-        # --- END FIX ---
         
-        projects_df['predicted_eac_usd'] = projects_df.apply(
-            lambda row: ml.predict_eac(eac_prediction_model, eac_features, row),
-            axis=1
-        )
+        projects_df['predicted_eac_usd'] = projects_df.apply(lambda row: ml.predict_eac(eac_prediction_model, eac_features, row), axis=1)
     
     alerts = _run_automation_engine(projects_df, dhf_df)
 
     return {
-        "projects": projects_df.to_dict('records'),
-        "strategic_goals": strategic_goals,
-        "enterprise_resources": enterprise_resources,
-        "allocations": allocations,
-        "milestones": milestones,
-        "raid_logs": raid_logs,
-        "qms_kpis": qms_kpis,
-        "financials": financials,
-        "on_market_products": on_market_products,
-        "dhf_documents": dhf_df.to_dict('records'),
-        "traceability_matrix": traceability_matrix,
-        "phase_gate_data": phase_gate_data,
-        "resource_demand_history": resource_demand_history,
-        "change_controls": change_controls,
-        "collaborations": collaborations,
-        "alerts": alerts,
-        "pmo_team": pmo_team,
-        "pmo_department_budget": pmo_department_budget,
+        "projects": projects_df.to_dict('records'), "strategic_goals": strategic_goals,
+        "enterprise_resources": enterprise_resources, "allocations": allocations,
+        "milestones": milestones, "raid_logs": raid_logs, "qms_kpis": qms_kpis,
+        "financials": financials, "on_market_products": on_market_products,
+        "dhf_documents": dhf_df.to_dict('records'), "traceability_matrix": traceability_matrix,
+        "phase_gate_data": phase_gate_data, "resource_demand_history": resource_demand_history,
+        "change_controls": change_controls, "collaborations": collaborations, "alerts": alerts,
+        "pmo_team": pmo_team, "pmo_department_budget": pmo_department_budget,
         "process_adherence": process_adherence,
     }
 
 class SPMOSessionStateManager:
-    # (The rest of the class is unchanged and correct)
-    _PMO_DATA_KEY = "pmo_intelligent_data_v14" # Version updated for final fix
+    _PMO_LIVE_DATA_KEY = "pmo_live_data_v15"
+    _PMO_SANDBOX_KEY = "pmo_sandbox_data_v15" # NEW: Key for the isolated sandbox data
     
     def __init__(self):
-        if self._PMO_DATA_KEY not in st.session_state:
-            logger.info(f"Initializing session state with intelligent sPMO data model.")
+        """Initializes session state, loading live data and setting up sandbox keys if not present."""
+        if self._PMO_LIVE_DATA_KEY not in st.session_state:
+            logger.info("Initializing session state with live sPMO data model.")
             with st.spinner("Connecting to enterprise systems and running predictive models..."):
-                st.session_state[self._PMO_DATA_KEY] = _load_and_process_data()
+                st.session_state[self._PMO_LIVE_DATA_KEY] = _load_and_process_data()
+                st.session_state[self._PMO_SANDBOX_KEY] = None # Sandbox is initially empty
                 st.session_state['sandbox_mode'] = False
-                st.session_state['sandbox_actions'] = []
+                st.session_state['audit_trail'] = [] # Initialize empty audit trail
+
+    def _get_active_data_model(self, is_write_op: bool = False):
+        """Returns the active data model (live or sandbox) based on the current mode."""
+        if st.session_state.get('sandbox_mode', False):
+            # If in sandbox mode, always return the sandbox model
+            return st.session_state[self._PMO_SANDBOX_KEY]
+        
+        if is_write_op:
+            # Prevent accidental writes to live data; force sandbox for state changes
+            st.error("State modifications are only allowed in Sandbox Mode. Please activate it.")
+            st.stop()
+        
+        # Default to live data for read operations
+        return st.session_state[self._PMO_LIVE_DATA_KEY]
 
     def get_data(self, key: str, default: Any = None) -> Any:
-        if key == 'projects' and st.session_state.get('sandbox_mode', False):
-            return self._get_sandboxed_projects()
-        return st.session_state.get(self._PMO_DATA_KEY, {}).get(key, default if default is not None else [])
+        """Safely retrieves data from the currently active data model (live or sandbox)."""
+        active_model = self._get_active_data_model()
+        return active_model.get(key, default if default is not None else [])
 
-    def _get_sandboxed_projects(self) -> List[Dict[str, Any]]:
-        original_projects = st.session_state[self._PMO_DATA_KEY]['projects']
-        projects_df = pd.DataFrame(original_projects).copy()
-        for action in st.session_state.get('sandbox_actions', []):
-            idx = projects_df.index[projects_df['id'] == action['project_id']]
-            if not idx.empty:
-                if action['type'] == 'cancel':
-                    projects_df = projects_df.drop(idx)
-                elif action['type'] == 'accelerate':
-                    projects_df.loc[idx, 'budget_usd'] *= 1.20
-        return projects_df.to_dict('records')
+    def log_audit_event(self, event_type: str, details: str, user: str = "System"):
+        """Logs a critical event to the audit trail for compliance."""
+        # NEW: Centralized audit logging for 21 CFR Part 11
+        event = {
+            "timestamp": datetime.now().isoformat(),
+            "user": user,
+            "event_type": event_type,
+            "details": details
+        }
+        st.session_state['audit_trail'].append(event)
+        logger.info(f"AUDIT EVENT: {event}")
+
+    def approve_dcr(self, dcr_id: str, project_id: str, user: str):
+        """Workflow to approve a DCR and log the event."""
+        # NEW: Workflow integration example
+        active_model = self._get_active_data_model(is_write_op=True)
+        changes = active_model['change_controls']
+        for change in changes:
+            if change['dcr_id'] == dcr_id:
+                change['status'] = 'Approved'
+                self.log_audit_event("DCR Approval", f"User '{user}' approved DCR '{dcr_id}' for project '{project_id}'.", user)
+                break
+    
+    def reallocate_resources_from_project(self, project_id_to_cancel: str):
+        """Sandbox-only: Zeros out allocations for a canceled project, freeing resources."""
+        # NEW: Deeper what-if simulation
+        if not st.session_state.get('sandbox_mode', False):
+            st.warning("Resource reallocation is only available in Sandbox Mode.")
+            return
+
+        active_model = self._get_active_data_model()
+        # Create a new list of allocations, excluding the canceled project's
+        current_allocations = active_model['allocations']
+        new_allocations = [alloc for alloc in current_allocations if alloc['project_id'] != project_id_to_cancel]
+        active_model['allocations'] = new_allocations
+        self.log_audit_event("Sandbox Simulation", f"Simulated resource reallocation from canceled project '{project_id_to_cancel}'.")
+
 
     def toggle_sandbox(self):
+        """Toggles the sandbox mode on or off, creating or clearing the sandbox data."""
         current_mode = st.session_state.get('sandbox_mode', False)
-        st.session_state['sandbox_mode'] = not current_mode
-        if st.session_state['sandbox_mode'] is False:
-            st.session_state['sandbox_actions'] = []
-            
-    def add_sandbox_action(self, action: Dict[str, Any]):
-        if 'sandbox_actions' not in st.session_state:
-            st.session_state['sandbox_actions'] = []
-        st.session_state['sandbox_actions'].append(action)
+        new_mode = not current_mode
+        st.session_state['sandbox_mode'] = new_mode
+        
+        if new_mode:
+            # Entering sandbox: create a deep copy of live data to isolate changes
+            st.session_state[self._PMO_SANDBOX_KEY] = copy.deepcopy(st.session_state[self._PMO_LIVE_DATA_KEY])
+            self.log_audit_event("Sandbox Simulation", "Sandbox mode activated. A deep copy of live data was created for simulation.")
+        else:
+            # Exiting sandbox: clear the sandbox data
+            st.session_state[self._PMO_SANDBOX_KEY] = None
