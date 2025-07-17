@@ -12,19 +12,11 @@ from utils.plot_utils import create_portfolio_bubble_chart
 
 def calculate_health_score(project_row: pd.Series) -> float:
     """Calculates a weighted health score for a project."""
-    # Weights for different components
     weights = {'spi': 0.4, 'cpi': 0.4, 'risk': 0.2}
-
-    # Score SPI: 100 for on-time/ahead (>=1), scales down to 0 for very late.
-    spi_score = np.clip(project_row['spi'] * 100, 0, 100)
-
-    # Score CPI: 100 for on-budget/under (>=1), scales down.
-    cpi_score = np.clip(project_row['cpi'] * 100, 0, 100)
-
-    # Score Risk: 100 for low risk (1), 0 for high risk (10). Inverted scale.
-    risk_score = (10 - project_row['risk_score']) / 9 * 100
-
-    # Calculate weighted score
+    spi_score = np.clip(project_row.get('spi', 0) * 100, 0, 100)
+    cpi_score = np.clip(project_row.get('cpi', 0) * 100, 0, 100)
+    risk_score_val = project_row.get('risk_score', 5) # Default to neutral risk if not present
+    risk_score = (10 - risk_score_val) / 9 * 100
     weighted_score = (
         spi_score * weights['spi'] +
         cpi_score * weights['cpi'] +
@@ -46,14 +38,12 @@ def render_portfolio_dashboard(ssm: SPMOSessionStateManager):
     df = pd.DataFrame(projects)
     active_df = df[df['health_status'] != "Completed"].copy()
 
-    # --- 10++ Feature: Automated Health Score Calculation ---
     if not active_df.empty:
         active_df['health_score'] = active_df.apply(calculate_health_score, axis=1)
         portfolio_health = np.average(active_df['health_score'], weights=active_df['budget_usd'])
     else:
-        portfolio_health = 100 # Default to 100 if no active projects
+        portfolio_health = 100
 
-    # --- KPIs ---
     st.subheader("Executive KPIs")
     total_budget = df['budget_usd'].sum()
     total_actuals = df['actuals_usd'].sum()
@@ -72,7 +62,7 @@ def render_portfolio_dashboard(ssm: SPMOSessionStateManager):
     )
     kpi_cols[2].metric(
         "Portfolio Budget Burn",
-        f"{(total_actuals / total_budget) * 100:.1f}%",
+        f"{(total_actuals / total_budget) * 100:.1f}%" if total_budget > 0 else "0%",
         f"${total_actuals:,.0f} / ${total_budget:,.0f}",
         help="Total actual spend versus total approved budget for all projects."
     )
@@ -86,7 +76,6 @@ def render_portfolio_dashboard(ssm: SPMOSessionStateManager):
 
     st.divider()
 
-    # --- Portfolio Bubble Chart ---
     st.subheader("Portfolio Landscape: Strategy vs. Risk")
     st.info(
         "**How to read this chart:** This is a strategic view of the entire portfolio, balancing project risk against strategic value to the business. "
@@ -99,18 +88,13 @@ def render_portfolio_dashboard(ssm: SPMOSessionStateManager):
 
     st.divider()
 
-    # --- 10++ Feature: Project Health Scorecard Table ---
     st.subheader("Project Health Scorecard")
     st.caption("Detailed, objective health scores for each active project.")
 
-    # Function to apply color based on health score
     def color_health_score(score):
-        if score >= 85:
-            color = '#2ca02c'  # green
-        elif score >= 65:
-            color = '#ff7f0e'  # orange
-        else:
-            color = '#d62728'  # red
+        if score >= 85: color = '#2ca02c'
+        elif score >= 65: color = '#ff7f0e'
+        else: color = '#d62728'
         return f'background-color: {color}; color: white; font-weight: bold;'
 
     if not active_df.empty:
@@ -118,7 +102,6 @@ def render_portfolio_dashboard(ssm: SPMOSessionStateManager):
             'name', 'project_type', 'phase', 'pm', 'health_score', 'cpi', 'spi', 'risk_score'
         ]].copy()
 
-        # *** FIX for FutureWarning: Use .map() instead of .applymap() ***
         styled_df = display_df.style.map(
             color_health_score, subset=['health_score']
         ).format({
