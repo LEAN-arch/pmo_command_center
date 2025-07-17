@@ -19,7 +19,6 @@ def _initialize_data_cache():
 
     base_date = date.today() - timedelta(days=730)
 
-    # (Enterprise resources, PMO team, PMO budget, process adherence... unchanged)
     _DATA_CACHE['enterprise_resources'] = [
         {"name": "Alice Weber", "role": "Instrument R&D", "cost_per_hour": 110, "capacity_hours_week": 40, "location": "San Diego"},
         {"name": "Bob Chen", "role": "Software R&D", "cost_per_hour": 100, "capacity_hours_week": 40, "location": "San Diego"},
@@ -60,7 +59,6 @@ def _initialize_data_cache():
         {"id": "SG-04", "goal": "Expand Connectivity & Data Solutions"}
     ]
     
-    # --- ENHANCEMENT: Projects now use more realistic phases and new projects have been added ---
     _DATA_CACHE['projects'] = [
         {"id": "NPD-003", "name": "NextGen Aptiva Instrument", "description": "A next-generation, high-throughput instrument for the Aptiva line.", "project_type": "NPD", "phase": "Concept", "pm": "Sofia Chen", "strategic_goal_id": "SG-01", "complexity": 5, "team_size": 5, "strategic_value": 10, "risk_score": 8, "health_status": "On Track", "regulatory_path": "PMA", "budget_usd": 15000000, "actuals_usd": 100000, "pv_usd": 150000, "ev_usd": 150000, "start_date": (date.today() - timedelta(days=30)).isoformat(), "end_date": (date.today() + timedelta(days=1400)).isoformat(), "final_outcome": None},
         {"id": "NPD-001", "name": "Aptiva Celiac Disease Panel", "description": "Next-generation assay for Celiac Disease on the Aptiva platform.", "project_type": "NPD", "phase": "Development", "pm": "John Smith", "strategic_goal_id": "SG-01", "complexity": 5, "team_size": 12, "strategic_value": 9, "risk_score": 7, "health_status": "At Risk", "regulatory_path": "510(k)", "budget_usd": 5000000, "actuals_usd": 4100000, "pv_usd": 4000000, "ev_usd": 3800000, "start_date": (base_date + timedelta(days=230)).isoformat(), "end_date": (base_date + timedelta(days=960)).isoformat(), "final_outcome": None},
@@ -72,23 +70,6 @@ def _initialize_data_cache():
         {"id": "LCM-H01", "name": "BIO-FLASH Reagent Stability Update", "description": "Historical project for ML model training.", "project_type": "LCM", "phase": "Completed", "pm": "Jane Doe", "strategic_goal_id": "SG-04", "complexity": 2, "team_size": 5, "strategic_value": 6, "risk_score": 2, "health_status": "Completed", "regulatory_path": "Letter to File", "budget_usd": 800000, "actuals_usd": 750000, "pv_usd": 800000, "ev_usd": 800000, "start_date": (base_date + timedelta(days=100)).isoformat(), "end_date": (base_date + timedelta(days=400)).isoformat(), "final_outcome": "On Time"},
     ]
     
-    # ENHANCEMENT: Added allocations for the new projects
-    _DATA_CACHE['allocations'] = [
-        {"project_id": "NPD-001", "resource_name": "Charlie Day", "allocated_hours_week": 20},
-        {"project_id": "NPD-001", "resource_name": "Alice Weber", "allocated_hours_week": 40},
-        {"project_id": "NPD-001", "resource_name": "Bob Chen", "allocated_hours_week": 10},
-        {"project_id": "NPD-002", "resource_name": "Frank Green", "allocated_hours_week": 40},
-        {"project_id": "NPD-002", "resource_name": "Isabel Garcia", "allocated_hours_week": 30},
-        {"project_id": "LCM-002", "resource_name": "Diana Evans", "allocated_hours_week": 20},
-        {"project_id": "LCM-002", "resource_name": "Javier Morales", "allocated_hours_week": 40},
-        {"project_id": "COGS-001", "resource_name": "Henry Ford", "allocated_hours_week": 30},
-        {"project_id": "NPD-003", "resource_name": "Lena Vogel", "allocated_hours_week": 20},
-        {"project_id": "NPD-003", "resource_name": "Klaus Schmidt", "allocated_hours_week": 30},
-        {"project_id": "NPD-004", "resource_name": "Diana Evans", "allocated_hours_week": 20},
-        {"project_id": "NPD-004", "resource_name": "Grace Hopper", "allocated_hours_week": 40},
-    ]
-
-    # (Other data structures remain unchanged and correct)
     _DATA_CACHE['dhf_documents'] = [
         {"doc_id": "DHF-N001-01", "project_id": "NPD-001", "doc_type": "Design & Development Plan", "status": "Approved", "owner": "John Smith", "gate": "Development"},
         {"doc_id": "DHF-N001-02", "project_id": "NPD-001", "doc_type": "User Needs & Requirements", "status": "Approved", "owner": "Alice Weber", "gate": "Development"},
@@ -108,22 +89,37 @@ def _initialize_data_cache():
         {"log_id": "I-001", "project_id": "LCM-002", "type": "Issue", "description": "Notified Body has requested additional clinical evidence.", "owner": "Diana Evans", "status": "Active", "due_date": (date.today() + timedelta(days=60)).isoformat()},
         {"log_id": "D-001", "project_id": "NPD-002", "type": "Decision", "description": "Proceed with TLS 1.3 for data transmission security.", "owner": "Jane Doe", "status": "Closed", "due_date": (date.today() - timedelta(days=20)).isoformat()},
     ]
-    demand_history = []
-    roles_in_pool = {res['role'] for res in _DATA_CACHE['enterprise_resources']}
-    role_demand_profiles = {"Assay R&D": {"base": 160, "trend": 5},"Software R&D": {"base": 120, "trend": 3},"Instrument R&D": {"base": 100, "trend": 2},"RA/QA": {"base": 80, "trend": 4},"Clinical Affairs": {"base": 50, "trend": 1},"Operations": {"base": 70, "trend": 0},"Systems Engineering": {"base": 60, "trend": 3},}
-    for role in roles_in_pool:
-        profile = role_demand_profiles.get(role, {"base": 40, "trend": 1})
-        for i in range(24, 0, -1):
-            d = date.today() - timedelta(days=i*30)
-            demand = profile['base'] + i * profile['trend'] + random.randint(-20, 20)
-            demand_history.append({"date": d.isoformat(), "role": role, "demand_hours": max(0, demand)})
-    _DATA_CACHE['resource_demand_history'] = demand_history
-    # (Rest of the file remains unchanged...)
-    _DATA_CACHE['milestones'] = [ {"project_id": "NPD-001", "milestone": "V&V Start", "due_date": (base_date + timedelta(days=450)).isoformat(), "status": "At Risk"}, {"project_id": "NPD-001", "milestone": "Design Freeze", "due_date": (base_date + timedelta(days=400)).isoformat(), "status": "Completed"}, {"project_id": "NPD-002", "milestone": "System Integration Test", "due_date": (date.today() + timedelta(days=90)).isoformat(), "status": "On Track"}, ]
-    _DATA_CACHE['collaborations'] = [ {"project_id": "NPD-001", "collaborating_entity": "R&D Center - Barcelona", "type": "Technology Transfer", "status": "Active"}, {"project_id": "LCM-002", "collaborating_entity": "Regulatory - Germany", "type": "IVDR Submission Support", "status": "Active"}, ]
-    _DATA_CACHE['change_controls'] = [ {"dcr_id": "DCR-24-001", "project_id": "NPD-001", "description": "Change primary antibody supplier", "status": "Pending Review"}, {"dcr_id": "DCR-24-02", "project_id": "NPD-002", "description": "Update encryption library from v1.2 to v1.3", "status": "Approved"}, ]
-    _DATA_CACHE['traceability_matrix'] = [ {"project_id": "NPD-001", "source": "User Need 1: Detect Celiac antibodies", "target": "Assay Req 1.1: Use tTG-IgA antigen", "value": 1}, {"project_id": "NPD-001", "source": "Assay Req 1.1: Use tTG-IgA antigen", "target": "V&V Protocol 1.1", "value": 1}, {"project_id": "NPD-002", "source": "User Need 1: Secure Data Tx", "target": "SW Req 1.1: Use TLS 1.3", "value": 1}, ]
-    _DATA_CACHE['phase_gate_data'] = [ {"project_id": "NPD-H01", "gate_name": "Gate 2: Feasibility", "planned_date": (base_date + timedelta(days=180)).isoformat(), "actual_date": (base_date + timedelta(days=190)).isoformat()}, {"project_id": "NPD-H01", "gate_name": "Gate 3: Development", "planned_date": (base_date + timedelta(days=450)).isoformat(), "actual_date": (base_date + timedelta(days=480)).isoformat()}, {"project_id": "LCM-H01", "gate_name": "Gate 2: Feasibility", "planned_date": (base_date + timedelta(days=160)).isoformat(), "actual_date": (base_date + timedelta(days=160)).isoformat()}, ]
+    _DATA_CACHE['milestones'] = [
+        {"project_id": "NPD-001", "milestone": "V&V Start", "due_date": (base_date + timedelta(days=450)).isoformat(), "status": "At Risk"},
+        {"project_id": "NPD-001", "milestone": "Design Freeze", "due_date": (base_date + timedelta(days=400)).isoformat(), "status": "Completed"},
+        {"project_id": "NPD-002", "milestone": "System Integration Test", "due_date": (date.today() + timedelta(days=90)).isoformat(), "status": "On Track"},
+    ]
+    _DATA_CACHE['allocations'] = [
+        {"project_id": "NPD-001", "resource_name": "Charlie Day", "allocated_hours_week": 20}, {"project_id": "NPD-001", "resource_name": "Alice Weber", "allocated_hours_week": 40}, {"project_id": "NPD-001", "resource_name": "Bob Chen", "allocated_hours_week": 10},
+        {"project_id": "NPD-002", "resource_name": "Frank Green", "allocated_hours_week": 40}, {"project_id": "NPD-002", "resource_name": "Isabel Garcia", "allocated_hours_week": 30},
+        {"project_id": "LCM-002", "resource_name": "Diana Evans", "allocated_hours_week": 20}, {"project_id": "LCM-002", "resource_name": "Javier Morales", "allocated_hours_week": 40},
+        {"project_id": "COGS-001", "resource_name": "Henry Ford", "allocated_hours_week": 30},
+        {"project_id": "NPD-003", "resource_name": "Lena Vogel", "allocated_hours_week": 20}, {"project_id": "NPD-003", "resource_name": "Klaus Schmidt", "allocated_hours_week": 30},
+        {"project_id": "NPD-004", "resource_name": "Diana Evans", "allocated_hours_week": 20}, {"project_id": "NPD-004", "resource_name": "Grace Hopper", "allocated_hours_week": 40},
+    ]
+    _DATA_CACHE['collaborations'] = [
+        {"project_id": "NPD-001", "collaborating_entity": "R&D Center - Barcelona", "type": "Technology Transfer", "status": "Active"},
+        {"project_id": "LCM-002", "collaborating_entity": "Regulatory - Germany", "type": "IVDR Submission Support", "status": "Active"},
+    ]
+    _DATA_CACHE['change_controls'] = [
+        {"dcr_id": "DCR-24-001", "project_id": "NPD-001", "description": "Change primary antibody supplier", "status": "Pending Review"},
+        {"dcr_id": "DCR-24-002", "project_id": "NPD-002", "description": "Update encryption library from v1.2 to v1.3", "status": "Approved"},
+    ]
+    _DATA_CACHE['traceability_matrix'] = [
+        {"project_id": "NPD-001", "source": "User Need 1: Detect Celiac antibodies", "target": "Assay Req 1.1: Use tTG-IgA antigen", "value": 1},
+        {"project_id": "NPD-001", "source": "Assay Req 1.1: Use tTG-IgA antigen", "target": "V&V Protocol 1.1", "value": 1},
+        {"project_id": "NPD-002", "source": "User Need 1: Secure Data Tx", "target": "SW Req 1.1: Use TLS 1.3", "value": 1},
+    ]
+    _DATA_CACHE['phase_gate_data'] = [
+        {"project_id": "NPD-H01", "gate_name": "Gate 2: Feasibility", "planned_date": (base_date + timedelta(days=180)).isoformat(), "actual_date": (base_date + timedelta(days=190)).isoformat()},
+        {"project_id": "NPD-H01", "gate_name": "Gate 3: Development", "planned_date": (base_date + timedelta(days=450)).isoformat(), "actual_date": (base_date + timedelta(days=480)).isoformat()},
+        {"project_id": "LCM-H01", "gate_name": "Gate 2: Feasibility", "planned_date": (base_date + timedelta(days=160)).isoformat(), "actual_date": (base_date + timedelta(days=160)).isoformat()},
+    ]
     financials = []
     for p in _DATA_CACHE['projects']:
         if p['health_status'] != 'Completed':
@@ -137,6 +133,16 @@ def _initialize_data_cache():
                     if point_date.date() < date.today():
                          financials.append({"project_id": p['id'], "date": point_date.isoformat(), "type": "Actuals", "amount": p['actuals_usd'] * (i / 5) * random.uniform(0.9, 1.1)})
     _DATA_CACHE['financials'] = financials
+    demand_history = []
+    roles_in_pool = {res['role'] for res in _DATA_CACHE['enterprise_resources']}
+    role_demand_profiles = {"Assay R&D": {"base": 160, "trend": 5},"Software R&D": {"base": 120, "trend": 3},"Instrument R&D": {"base": 100, "trend": 2},"RA/QA": {"base": 80, "trend": 4},"Clinical Affairs": {"base": 50, "trend": 1},"Operations": {"base": 70, "trend": 0},"Systems Engineering": {"base": 60, "trend": 3},}
+    for role in roles_in_pool:
+        profile = role_demand_profiles.get(role, {"base": 40, "trend": 1})
+        for i in range(24, 0, -1):
+            d = date.today() - timedelta(days=i*30)
+            demand = profile['base'] + i * profile['trend'] + random.randint(-20, 20)
+            demand_history.append({"date": d.isoformat(), "role": role, "demand_hours": max(0, demand)})
+    _DATA_CACHE['resource_demand_history'] = demand_history
 
 def get_projects_from_erp(): _initialize_data_cache(); return _DATA_CACHE.get('projects', [])
 def get_financials_from_erp(): _initialize_data_cache(); return _DATA_CACHE.get('financials', [])
