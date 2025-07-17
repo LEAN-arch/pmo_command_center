@@ -30,8 +30,10 @@ def render_strategy_dashboard(ssm: SPMOSessionStateManager):
     # --- 10++ Feature: "What-If" Sandbox Mode ---
     st.subheader("🔬 'What-If' Portfolio Sandbox")
     
-    is_sandboxed = st.toggle(
+    is_sandboxed = st.session_state.get('sandbox_mode', False)
+    st.toggle(
         "Activate Sandbox Mode", 
+        value=is_sandboxed,
         key='sandbox_toggle', 
         on_change=ssm.toggle_sandbox,
         help="Simulate changes to the portfolio without affecting the live data. Deactivate to reset."
@@ -66,7 +68,6 @@ def render_strategy_dashboard(ssm: SPMOSessionStateManager):
     st.subheader("Strategic Investment KPIs")
     
     total_budget = aligned_df['budget_usd'].sum()
-    total_projects = len(aligned_df)
     total_active_projects = len(aligned_df[aligned_df['health_status'] != 'Completed'])
 
     kpi_cols = st.columns(3)
@@ -77,16 +78,17 @@ def render_strategy_dashboard(ssm: SPMOSessionStateManager):
     # --- Strategic Allocation Chart ---
     st.subheader("Portfolio Budget Allocation by Strategic Goal")
     
-    budget_by_goal = aligned_df.groupby('goal')['budget_usd'].sum().reset_index()
-    fig_pie = px.pie(
-        budget_by_goal,
-        names='goal',
-        values='budget_usd',
-        title='Portfolio Budget Allocation',
-        hole=0.4
-    )
-    fig_pie.update_traces(textposition='inside', textinfo='percent+label', sort=False)
-    st.plotly_chart(fig_pie, use_container_width=True)
+    if not aligned_df.empty:
+        budget_by_goal = aligned_df.groupby('goal')['budget_usd'].sum().reset_index()
+        fig_pie = px.pie(
+            budget_by_goal,
+            names='goal',
+            values='budget_usd',
+            title='Portfolio Budget Allocation',
+            hole=0.4
+        )
+        fig_pie.update_traces(textposition='inside', textinfo='percent+label', sort=False)
+        st.plotly_chart(fig_pie, use_container_width=True)
 
     st.divider()
 
