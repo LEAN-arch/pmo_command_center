@@ -92,7 +92,7 @@ def _create_spmo_model(version: float) -> Dict[str, Any]:
         {"project_id": "NPD-001", "milestone": "510(k) Submission", "due_date": (base_date + timedelta(days=700)).isoformat(), "status": "Pending"},
         {"project_id": "NPD-002", "milestone": "Prototype Complete", "due_date": (base_date + timedelta(days=400)).isoformat(), "status": "Completed"},
     ]
-    
+
     # --- 5. 10++ Feature: Centralized RAID Log ---
     raid_logs = [
         {"log_id": "R-001", "project_id": "NPD-001", "type": "Risk", "description": "Key sensor supplier fails to meet quality specs.", "owner": "Henry Ford", "status": "Mitigating", "due_date": (date.today() + timedelta(days=30)).isoformat()},
@@ -122,32 +122,48 @@ def _create_spmo_model(version: float) -> Dict[str, Any]:
     # --- 7. Full Financials & Phase Gate Data ---
     financials, phase_gate_data = [], []
     for p in projects:
-        project_duration_months = max(1, (pd.to_datetime(p['end_date']) - pd.to_datetime(p['start_date'])).days / 30.0)
-        months_elapsed = max(0, (date.today() - pd.to_datetime(p['start_date'])).days / 30.0)
-        if p['health_status'] == 'Completed': months_elapsed = project_duration_months
+        project_start_date = pd.to_datetime(p['start_date'])
+        project_end_date = pd.to_datetime(p['end_date'])
+        project_duration_months = max(1, (project_end_date - project_start_date).days / 30.0)
+
+        # *** FIX IS HERE ***
+        # Ensure both objects are Timestamps before subtraction.
+        months_elapsed = max(0, (pd.to_datetime(date.today()) - project_start_date).days / 30.0)
+
+        if p['health_status'] == 'Completed':
+            months_elapsed = project_duration_months
+
         if months_elapsed > 0:
             for i in range(int(project_duration_months)):
-                month_date = pd.to_datetime(p['start_date']) + pd.DateOffset(months=i)
+                month_date = project_start_date + pd.DateOffset(months=i)
                 planned_spend = p['budget_usd'] / project_duration_months
                 financials.append({"project_id": p['id'], "date": month_date.isoformat(), "type": "Planned", "category": "R&D Opex", "amount": planned_spend * 0.6})
+                financials.append({"project_id": p['id'], "date": month_date.isoformat(), "type": "Planned", "category": "Clinical/Reg", "amount": planned_spend * 0.2})
+                financials.append({"project_id": p['id'], "date": month_date.isoformat(), "type": "Planned", "category": "Capex", "amount": planned_spend * 0.1})
+                financials.append({"project_id": p['id'], "date": month_date.isoformat(), "type": "Planned", "category": "Other G&A", "amount": planned_spend * 0.1})
+                
                 if i < months_elapsed:
                     spend_factor = 1.2 if p['risk_score'] > 6 else 1.0
                     actual_spend_total = planned_spend * np.random.uniform(0.9, 1.1) * spend_factor
-                    if p['id'] == 'NPD-001' and i == 10: actual_spend_total += 300000 # anomaly
+                    if p['id'] == 'NPD-001' and i == 10:
+                        actual_spend_total += 300000 # anomaly
                     financials.append({"project_id": p['id'], "date": month_date.isoformat(), "type": "Actuals", "category": "R&D Opex", "amount": actual_spend_total * 0.65})
-        
+                    financials.append({"project_id": p['id'], "date": month_date.isoformat(), "type": "Actuals", "category": "Clinical/Reg", "amount": actual_spend_total * 0.15})
+                    financials.append({"project_id": p['id'], "date": month_date.isoformat(), "type": "Actuals", "category": "Capex", "amount": actual_spend_total * 0.1})
+                    financials.append({"project_id": p['id'], "date": month_date.isoformat(), "type": "Actuals", "category": "Other G&A", "amount": actual_spend_total * 0.1})
+
         # Phase Gate data
         if p['project_type'] == 'NPD':
-            phase_gate_data.append({"project_id": p['id'], "gate_name": "Gate 2: Feasibility", "planned_date": (pd.to_datetime(p['start_date']) + timedelta(days=180)).isoformat(), "actual_date": (pd.to_datetime(p['start_date']) + timedelta(days=190)).isoformat() if p['id'] != 'NPD-003' else None})
-            phase_gate_data.append({"project_id": p['id'], "gate_name": "Gate 3: Development", "planned_date": (pd.to_datetime(p['start_date']) + timedelta(days=400)).isoformat(), "actual_date": (pd.to_datetime(p['start_date']) + timedelta(days=450)).isoformat() if p['id'] in ['NPD-001', 'NPD-H02'] else None})
+            phase_gate_data.append({"project_id": p['id'], "gate_name": "Gate 2: Feasibility", "planned_date": (project_start_date + timedelta(days=180)).isoformat(), "actual_date": (project_start_date + timedelta(days=190)).isoformat() if p['id'] != 'NPD-003' else None})
+            phase_gate_data.append({"project_id": p['id'], "gate_name": "Gate 3: Development", "planned_date": (project_start_date + timedelta(days=400)).isoformat(), "actual_date": (project_start_date + timedelta(days=450)).isoformat() if p['id'] in ['NPD-001', 'NPD-H02', 'NPD-H01'] else None})
 
     # --- 8. QMS & Time Series Data ---
-    qms_kpis = {"open_capas": 8, "overdue_capas": 2, "internal_audit_findings_open": 5}
+    qms_kpis = {"open_capas": 8, "overdue_capas": 2, "internal_audit_findings_open": 5, "overdue_training_records": 12}
     resource_demand_history = []
-    for role in ["Instrument R&D", "Software R&D", "Assay R&D", "RA/QA"]:
+    for role in ["Instrument R&D", "Software R&D", "Assay R&D", "RA/QA", "Clinical Affairs", "Operations"]:
         for i in range(24):
             month_date = base_date + timedelta(days=i*30)
-            base_demand, trend, seasonality, noise = random.randint(100, 300), i * 5, 50 * np.sin(2 * np.pi * i / 12), random.randint(-20, 20)
+            base_demand, trend, seasonality, noise = random.randint(80, 250), i * 4, 40 * np.sin(2 * np.pi * i / 12), random.randint(-20, 20)
             demand = base_demand + trend + seasonality + noise
             resource_demand_history.append({"date": month_date.isoformat(), "role": role, "demand_hours": max(0, demand)})
 
