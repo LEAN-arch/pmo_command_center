@@ -1,8 +1,8 @@
 # pmo_command_center/dashboards/collaboration_tracker.py
 """
 This module renders the Cross-Entity Collaboration dashboard. It helps the
-PMO Director track inter-site projects, shared resources, and the exchange
-of best practices with other corporate entities.
+PMO Director track inter-site projects and the exchange of best practices
+with other Werfen corporate entities to leverage enterprise-wide knowledge.
 """
 import streamlit as st
 import pandas as pd
@@ -12,8 +12,9 @@ from datetime import date, timedelta
 def render_collaboration_dashboard(ssm: SPMOSessionStateManager):
     """Renders the dashboard for tracking cross-entity collaborations."""
     st.header("🌐 Cross-Entity Collaboration Tracker")
-    st.caption("Monitor inter-site projects, shared resources, and the exchange of best practices with other corporate entities to leverage enterprise-wide knowledge.")
+    st.caption("Monitor inter-site projects, shared resources, and the exchange of best practices with other corporate entities, such as Barcelona and Germany.")
 
+    # --- Data Loading ---
     collaborations = ssm.get_data("collaborations")
     projects = ssm.get_data("projects")
 
@@ -33,21 +34,24 @@ def render_collaboration_dashboard(ssm: SPMOSessionStateManager):
         use_container_width=True,
         hide_index=True,
         column_config={
-            "name": st.column_config.TextColumn("Autoimmunity Project", width="large"),
-            "collaborating_entity": st.column_config.TextColumn("Collaborating Entity", width="large"),
+            "name": st.column_config.TextColumn("Our Autoimmunity Project", width="large"),
+            "collaborating_entity": st.column_config.TextColumn("Collaborating Werfen Entity", width="large"),
             "type": "Collaboration Type",
             "status": "Status",
-            "pm": st.column_config.TextColumn("NA Project Manager")
+            "pm": st.column_config.TextColumn("NA Project Manager Lead")
         }
     )
 
     st.divider()
 
-    st.subheader("Best Practices Exchange")
-    st.info("This section serves as a repository for best practices shared across entities, fostering continuous improvement in project management methodology and technical execution.", icon="🤝")
+    st.subheader("Best Practices Exchange & Knowledge Transfer")
+    st.info(
+        "This section serves as a repository for best practices shared across entities, fostering continuous improvement "
+        "in project management methodology and technical execution. The goal is to leverage Werfen's global expertise.",
+        icon="🤝"
+    )
 
-    # This would be powered by a more formal knowledge management system in a real application
-    # For the demo, we use markdown to simulate entries.
+    # This would be powered by a more formal knowledge management system in a real application.
     st.markdown("""
     | Date       | Originating Entity        | Best Practice / Lesson Learned                                       | Applicable To                  |
     |------------|---------------------------|----------------------------------------------------------------------|--------------------------------|
@@ -58,13 +62,14 @@ def render_collaboration_dashboard(ssm: SPMOSessionStateManager):
 
     st.divider()
 
-    st.subheader("Coordination & Meetings")
-    st.info("Tracking key meetings and decisions related to cross-entity initiatives to ensure alignment and accountability.", icon="📅")
+    st.subheader("Coordination & Key Meetings")
+    st.caption("Tracking key meetings and decisions related to cross-entity initiatives to ensure alignment and accountability.")
     
-    # Placeholder for a calendar or meeting notes feature
-    st.write({
-        "Meeting": ["Quarterly PMO Sync w/ Barcelona", "IVDR Task Force Weekly"],
-        "Next Occurrence": [date.today() + timedelta(days=45), date.today() + timedelta(days=4)],
-        "Key Contact (External)": ["Javier Garcia", "Klaus Müller"],
-        "NA Lead": ["David Lee", "Diana Evans"]
-    })
+    # Placeholder for a calendar or meeting notes feature, presented in a cleaner table format
+    meeting_data = {
+        "Meeting": ["Quarterly PMO Sync w/ Barcelona", "IVDR Task Force Weekly", "Global Tech Council"],
+        "Next Occurrence": [(date.today() + timedelta(days=45)).strftime('%Y-%m-%d'), (date.today() + timedelta(days=4)).strftime('%Y-%m-%d'), (date.today() + timedelta(days=60)).strftime('%Y-%m-%d')],
+        "Key Contact (External)": ["Javier Garcia", "Klaus Müller", "Dr. Lena Vogel"],
+        "NA Lead": ["David Lee", "Diana Evans", "Sofia Chen"]
+    }
+    st.table(pd.DataFrame(meeting_data))
