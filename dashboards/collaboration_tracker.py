@@ -69,7 +69,6 @@ def render_collaboration_dashboard(ssm: SPMOSessionStateManager):
     st.subheader("Coordination & Key Meetings")
     st.caption("Tracking key meetings and decisions related to cross-entity initiatives to ensure alignment and accountability.")
     
-    # Placeholder for a calendar or meeting notes feature, presented in a cleaner table format
     meeting_data = {
         "Meeting": ["Quarterly PMO Sync w/ Barcelona", "IVDR Task Force Weekly", "Global Tech Council"],
         "Next Occurrence": [(date.today() + timedelta(days=45)).strftime('%Y-%m-%d'), (date.today() + timedelta(days=4)).strftime('%Y-%m-%d'), (date.today() + timedelta(days=60)).strftime('%Y-%m-%d')],
