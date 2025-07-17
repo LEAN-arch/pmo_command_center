@@ -1,19 +1,57 @@
 # Autoimmunity Division - sPMO Command Center
 
-This Streamlit application is the definitive strategic and predictive dashboard for the Director of the Project Management Office (sPMO) within the Autoimmunity division.
+## Overview
 
-## Architecture & Modules
+The **sPMO Command Center** is a comprehensive, strategic portfolio management application designed for the Werfen Autoimmunity division's PMO Director. It serves as a central, data-driven hub for executive oversight, proactive risk management, and strategic decision-making in a highly regulated medical device environment.
 
-This Command Center is architected to directly support the key accountabilities of a modern PMO Director, with a focus on maturing the PMO into a strategic function. It integrates **predictive machine learning models** to provide forward-looking, actionable insights.
+This tool transcends traditional reporting dashboards by integrating predictive analytics, prescriptive optimization, and interactive workflow capabilities. It empowers the PMO to evolve into a strategic partner to the business, ensuring project execution is perfectly aligned with corporate goals.
 
-1.  **Portfolio Dashboard:** An executive summary of the entire project landscape, tracking status, budget, and strategic alignment at a glance.
-2.  **Project Deep Dives:** An interactive module to analyze individual projects, their phase-gate progress, and a **ML-powered risk prediction model** that explains the key drivers of potential delays.
-3.  **Financial Overview:** A dedicated dashboard for portfolio and project-level financial analysis, including budget vs. actuals, variance, and **ML-based anomaly detection** to flag unusual spending patterns.
-4.  **Risk & Compliance:** A portfolio-wide risk heatmap and QMS compliance tracker, aggregating risks and monitoring key metrics like open CAPAs and audit findings, with context from **ISO 14971** and **21 CFR 820.100**.
-5.  **Resource Allocation:** A capacity management tool to visualize FTE utilization by function, identify resource bottlenecks, and **forecast future resource demand** using time-series models.
-6.  **Strategic Planning:** A module to map all projects to corporate strategic objectives, visualizing the 3-5 year roadmap and the portfolio's alignment with business goals.
-7.  **PMO Health & KPIs:** A dedicated dashboard to measure the effectiveness of the PMO itself, tracking **Critical-to-Quality (CTQ)** metrics like cycle time, milestone adherence, and risk closure rates to drive continuous improvement.
-8.  **Design Control Interface:** A compliance-focused view that tracks phase-gate status and links to key DHF artifacts, ensuring adherence to **21 CFR 820.30 (Design Controls)**.
-9.  **Cross-Entity Collaboration:** A tracker for monitoring projects and best practices shared with other corporate entities.
+## Core Features
 
-This tool provides a single source of truth for portfolio status, enhanced with predictive capabilities to enable proactive leadership.
+The application is structured around a series of integrated workspaces, each designed to support a key accountability of the PMO Director.
+
+### 1. 📊 Executive Portfolio Dashboard
+The main landing page providing a 360-degree, at-a-glance view of the entire portfolio.
+- **Objective Portfolio Health Score:** A budget-weighted KPI combining CPI, SPI, and risk for an unbiased measure of health.
+- **Strategic Landscape Chart:** An interactive bubble chart that visualizes all projects based on strategic value, risk, and budget.
+- **QMS Health Integration:** Displays critical Quality Management System KPIs (e.g., open CAPAs) alongside project metrics.
+
+### 2. 🎯 Strategic Scenario Planning & Optimization
+An interactive suite for high-level strategic planning and decision support.
+- **'What-If' Sandbox:** Activate a sandbox to simulate the impact of canceling or accelerating projects. All dashboards in the application dynamically update to reflect the simulation without affecting live data.
+- **Prescriptive Portfolio Optimizer:** A powerful analytics engine that recommends the optimal project portfolio. Users define a strategic objective (e.g., Maximize Value) and constraints (budget, resources), and the engine uses linear programming to find the best set of projects to fund.
+- **Strategic Roadmap:** A Gantt-style timeline of all active projects, color-coded by the strategic goals they support.
+
+### 3. 🧬 PLM & Design Control Cockpit
+A cornerstone dashboard for managing the product lifecycle in a regulated environment.
+- **Realistic R&D Pipeline:** A Kanban-style view of the entire product development process, from `Concept` to `Launch`.
+- **21 CFR 820.30 Compliance:** Proactively monitors Design History File (DHF) completeness to prevent late-stage documentation issues.
+- **Requirements Traceability:** Visualizes the links from user needs to V&V protocols using Sankey diagrams.
+- **On-Market Product Health:** Tracks post-market quality data for commercialized products.
+
+### 4. 📈 PMO Health & Maturity
+A consolidated dashboard for managing the PMO's own operational excellence.
+- **Departmental Budgeting:** Tools for managing the PMO's internal budget for staffing, training, and tooling.
+- **Team Management:** Tracks PMO headcount, roles, assignments, performance scores, and development paths.
+- **Process Performance & Adherence:** Measures the effectiveness of the PMO methodology through metrics like gate-schedule variance, cycle time, and adherence to key processes (e.g., RAID log updates).
+
+### 5. 🔎 Project Deep Dive & Predictive Analysis
+A granular, single-project view for detailed analysis and workflow management.
+- **AI-Powered Predictions:** Forecasts the likelihood of schedule delays and the final project cost (EAC).
+- **Explainable AI (XAI):** Provides a chart explaining *why* the AI model made its risk prediction, showing the contributing factors.
+- **Integrated Change Control Workflow:** An interactive module to review and approve pending Design Change Requests (DCRs) directly within the application (in Sandbox mode).
+
+### 6. ⚖️ Governance & Reporting
+Centralizes key governance artifacts and communication tools.
+- **Portfolio RAID Log:** A filterable, portfolio-wide view of all Risks, Assumptions, Issues, and Decisions.
+- **One-Click Reporting Toolkit:** Generate professional, board-ready PowerPoint decks and detailed single-project status reports with a single click.
+- **Compliance Audit Trail:** An immutable, chronological log of all significant actions taken within the application, essential for **21 CFR Part 11** compliance.
+
+## Technical Architecture
+
+- **Framework:** Streamlit
+- **Data & Analytics:** Pandas, NumPy
+- **Machine Learning:** Scikit-learn (Regression), Prophet (Time-Series Forecasting)
+- **Optimization:** PuLP (Linear Programming)
+- **Visualization:** Plotly
+- **Reporting:** python-pptx
