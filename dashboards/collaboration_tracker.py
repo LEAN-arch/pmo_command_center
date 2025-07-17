@@ -1,4 +1,3 @@
-# pmo_command_center/dashboards/collaboration_tracker.py
 """
 This module renders the Cross-Entity Collaboration dashboard. It helps the
 PMO Director track inter-site projects and the exchange of best practices
@@ -6,8 +5,8 @@ with other Werfen corporate entities to leverage enterprise-wide knowledge.
 """
 import streamlit as st
 import pandas as pd
-from utils.pmo_session_state_manager import SPMOSessionStateManager
 from datetime import date, timedelta
+from utils.pmo_session_state_manager import SPMOSessionStateManager
 
 def render_collaboration_dashboard(ssm: SPMOSessionStateManager):
     """Renders the dashboard for tracking cross-entity collaborations."""
@@ -75,4 +74,4 @@ def render_collaboration_dashboard(ssm: SPMOSessionStateManager):
         "Key Contact (External)": ["Javier Garcia", "Klaus Müller", "Dr. Lena Vogel"],
         "NA Lead": ["David Lee", "Diana Evans", "Sofia Chen"]
     }
-    st.table(pd.DataFrame(meeting_data))
+    st.dataframe(pd.DataFrame(meeting_data), hide_index=True, use_container_width=True)
