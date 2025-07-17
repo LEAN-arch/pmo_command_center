@@ -51,11 +51,12 @@ def create_portfolio_bubble_chart(df: pd.DataFrame) -> go.Figure:
 
 def create_risk_contribution_plot(contribution_df: pd.DataFrame, title: str) -> go.Figure:
     """Creates an interpretable bar chart for ML risk model contributions."""
-    contribution_df['color'] = contribution_df['contribution'].apply(lambda x: '#d62728' if x > 0 else '#2ca02c') # Red for risk, green for safety
-    fig = px.bar(contribution_df.sort_values('contribution'), x='contribution', y='feature', orientation='h',
+    df = contribution_df.copy() # Proactive fix: work on a copy
+    df['color'] = df['contribution'].apply(lambda x: '#d62728' if x > 0 else '#2ca02c') # Red for risk, green for safety
+    fig = px.bar(df.sort_values('contribution'), x='contribution', y='feature', orientation='h',
                  title=title, labels={'contribution': "Impact on Risk (Log-Odds)", 'feature': 'Risk Factor'},
                  text='contribution')
-    fig.update_traces(marker_color=contribution_df['color'], texttemplate='%{text:.3f}', textposition='outside')
+    fig.update_traces(marker_color=df['color'], texttemplate='%{text:.3f}', textposition='outside')
     fig.update_layout(showlegend=False, yaxis_title=None)
     fig.add_vline(x=0, line_width=1, line_dash="dash", line_color="black")
     return fig
@@ -67,10 +68,10 @@ def create_financial_burn_chart(df: pd.DataFrame, title: str, anomaly_dates: lis
     if df.empty:
         return go.Figure().update_layout(title_text=f"No Financial Data for {title}", xaxis_visible=False, yaxis_visible=False)
 
-    df = df.copy()
-    df['date'] = pd.to_datetime(df['date'])
+    df_copy = df.copy()
+    df_copy['date'] = pd.to_datetime(df_copy['date'])
     today = pd.to_datetime(date.today())
-    pivot_df = df.pivot_table(index='date', columns='type', values='amount', aggfunc='sum').fillna(0).cumsum().reset_index()
+    pivot_df = df_copy.pivot_table(index='date', columns='type', values='amount', aggfunc='sum').fillna(0).cumsum().reset_index()
 
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=pivot_df['date'], y=pivot_df.get('Planned', pd.Series(dtype='float64')),
@@ -119,7 +120,8 @@ def create_resource_heatmap(pivot_df: pd.DataFrame, utilization_df: pd.DataFrame
     hover_text = []
     for r_name in pivot_df.index:
         row_text = []
-        util_pct = utilization_df.loc[utilization_df['name'] == r_name, 'utilization_pct'].iloc[0]
+        util_pct_series = utilization_df.loc[utilization_df['name'] == r_name, 'utilization_pct']
+        util_pct = util_pct_series.iloc[0] if not util_pct_series.empty else 0
         for p_name in pivot_df.columns:
             alloc_hours = pivot_df.loc[r_name, p_name]
             row_text.append(f"<b>{r_name} on {p_name}</b><br>Hours: {alloc_hours}<br>Total Utilization: {util_pct:.0f}%")
@@ -140,7 +142,7 @@ def create_capacity_plan_chart(demand_df: pd.DataFrame, capacity_df: pd.DataFram
     """Visualizes forecasted demand vs. current capacity for a given role."""
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=demand_df['ds'], y=demand_df['yhat'], mode='lines', name='Forecasted Demand', line=dict(color='crimson', dash='dash')))
-    fig.add_trace(go.Scatter(x=demand_df['ds'], y=[capacity_df[role]]*len(demand_df), mode='lines', name='Current Capacity', line=dict(color='grey')))
+    fig.add_trace(go.Scatter(x=demand_df['ds'], y=[capacity_df.get(role, 0)]*len(demand_df), mode='lines', name='Current Capacity', line=dict(color='grey')))
     fig.update_layout(title=f"<b>Capacity Plan: Forecasted Demand vs. Capacity for {role}</b>",
                       xaxis_title="Date", yaxis_title="Required Hours per Month",
                       legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01))
@@ -181,10 +183,11 @@ def create_traceability_sankey(df: pd.DataFrame) -> go.Figure:
 
 def create_gate_variance_plot(df: pd.DataFrame) -> go.Figure:
     """Creates a bar chart showing the variance between planned and actual gate dates."""
-    df = df.copy()
-    df['planned_date'] = pd.to_datetime(df['planned_date'])
-    df['actual_date'] = pd.to_datetime(df['actual_date'])
-    df_filtered = df.dropna(subset=['actual_date'])
+    df_copy = df.copy()
+    df_copy['planned_date'] = pd.to_datetime(df_copy['planned_date'])
+    df_copy['actual_date'] = pd.to_datetime(df_copy['actual_date'])
+    # *** FIX IS HERE: Chain .copy() to prevent the warning ***
+    df_filtered = df_copy.dropna(subset=['actual_date']).copy()
 
     if df_filtered.empty:
         return go.Figure().update_layout(
