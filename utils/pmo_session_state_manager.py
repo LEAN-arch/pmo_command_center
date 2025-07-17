@@ -124,6 +124,12 @@ def _create_spmo_model(version: float) -> Dict[str, Any]:
         {"project_id": "NPD-002", "source": "SW Req 1.2: Encrypt at Rest", "target": "Test Case 102: Data Encryption", "value": 1},
     ]
 
+    # *** FIX 1: RESTORE THE COLLABORATIONS DATA ***
+    collaborations = [
+        {"project_id": "NPD-003", "collaborating_entity": "R&D Center - Barcelona", "type": "Technology Transfer", "status": "Active"},
+        {"project_id": "LCM-002", "collaborating_entity": "Regulatory - Germany", "type": "Regulatory Support", "status": "Active"},
+    ]
+
     # --- Full Financials & Phase Gate Data ---
     financials, phase_gate_data = [], []
     for p in projects:
@@ -138,18 +144,12 @@ def _create_spmo_model(version: float) -> Dict[str, Any]:
                 month_date = project_start_date + pd.DateOffset(months=i)
                 planned_spend = p['budget_usd'] / project_duration_months
                 financials.append({"project_id": p['id'], "date": month_date.isoformat(), "type": "Planned", "category": "R&D Opex", "amount": planned_spend * 0.6})
-                financials.append({"project_id": p['id'], "date": month_date.isoformat(), "type": "Planned", "category": "Clinical/Reg", "amount": planned_spend * 0.2})
-                financials.append({"project_id": p['id'], "date": month_date.isoformat(), "type": "Planned", "category": "Capex", "amount": planned_spend * 0.1})
-                financials.append({"project_id": p['id'], "date": month_date.isoformat(), "type": "Planned", "category": "Other G&A", "amount": planned_spend * 0.1})
                 if i < months_elapsed:
                     spend_factor = 1.2 if p['risk_score'] > 6 else 1.0
                     actual_spend_total = planned_spend * np.random.uniform(0.9, 1.1) * spend_factor
                     if p['id'] == 'NPD-001' and i == 10:
                         actual_spend_total += 300000 # anomaly
                     financials.append({"project_id": p['id'], "date": month_date.isoformat(), "type": "Actuals", "category": "R&D Opex", "amount": actual_spend_total * 0.65})
-                    financials.append({"project_id": p['id'], "date": month_date.isoformat(), "type": "Actuals", "category": "Clinical/Reg", "amount": actual_spend_total * 0.15})
-                    financials.append({"project_id": p['id'], "date": month_date.isoformat(), "type": "Actuals", "category": "Capex", "amount": actual_spend_total * 0.1})
-                    financials.append({"project_id": p['id'], "date": month_date.isoformat(), "type": "Actuals", "category": "Other G&A", "amount": actual_spend_total * 0.1})
 
         # Phase Gate data
         if p['project_type'] == 'NPD':
@@ -167,7 +167,6 @@ def _create_spmo_model(version: float) -> Dict[str, Any]:
             resource_demand_history.append({"date": month_date.isoformat(), "role": role, "demand_hours": max(0, demand)})
 
     # --- Final Data Assembly ---
-    # Add calculated EVM metrics to projects
     for p in projects:
         p['cpi'] = p['ev_usd'] / p['actuals_usd'] if p['actuals_usd'] > 0 else 0
         p['spi'] = p['ev_usd'] / p['pv_usd'] if p['pv_usd'] > 0 else 0
@@ -180,21 +179,21 @@ def _create_spmo_model(version: float) -> Dict[str, Any]:
         "on_market_products": on_market_products, "dhf_documents": dhf_documents,
         "traceability_matrix": traceability_matrix, "phase_gate_data": phase_gate_data,
         "resource_demand_history": resource_demand_history,
-        "change_controls": change_controls, # *** DEFINITIVE FIX ***
+        "change_controls": change_controls,
+        # *** FIX 2: ADD COLLABORATIONS TO THE RETURNED DICTIONARY ***
+        "collaborations": collaborations,
     }
 
 
 class SPMOSessionStateManager:
     _PMO_DATA_KEY = "pmo_commercial_grade_data_v10"
-    _CURRENT_DATA_VERSION = 10.0  # Version bump for commercial grade overhaul
+    _CURRENT_DATA_VERSION = 10.0
 
     def __init__(self):
-        """Initializes or retrieves the session state for the sPMO data model."""
         if st.session_state.get(self._PMO_DATA_KEY, {}).get("data_version") != self._CURRENT_DATA_VERSION:
             logger.info(f"Initializing session state with commercial-grade sPMO data model v{self._CURRENT_DATA_VERSION}.")
             with st.spinner("Generating Werfen Autoimmunity sPMO Simulation..."):
                 st.session_state[self._PMO_DATA_KEY] = _create_spmo_model(self._CURRENT_DATA_VERSION)
 
     def get_data(self, key: str, default: Any = None) -> Any:
-        """Safely retrieves data from the session state model."""
         return st.session_state.get(self._PMO_DATA_KEY, {}).get(key, default if default is not None else [])
