@@ -24,3 +24,4 @@ prophet==1.1.5
 plotly==5.20.0
 # python-pptx is used for the automated generation of PowerPoint status reports.
 python-pptx==0.6.23
+kaleido==0.2.1  # Required by Plotly for static image export (e.g., to PowerPoint)
