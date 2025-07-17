@@ -1,4 +1,3 @@
-# pmo_command_center/dashboards/plm_cockpit.py
 """
 This module renders the Product Lifecycle Management (PLM) & Design Control Cockpit.
 
@@ -30,6 +29,9 @@ def render_plm_cockpit(ssm: SPMOSessionStateManager):
 
     proj_df = pd.DataFrame(projects)
     active_proj_df = proj_df[proj_df['health_status'] != 'Completed'].copy()
+    
+    # Create a mapping dictionary for faster project name lookups
+    project_name_map = pd.Series(proj_df.name.values, index=proj_df.id).to_dict()
 
     # --- Tabbed Interface for Logical Separation ---
     tab1, tab2, tab3 = st.tabs(["**R&D Phase-Gate Pipeline**", "**DHF & Traceability**", "**On-Market Product Health**"])
@@ -43,10 +45,15 @@ def render_plm_cockpit(ssm: SPMOSessionStateManager):
             icon="🚦"
         )
 
-        phases = sorted(active_proj_df['phase'].unique(), key=lambda x: ['Feasibility', 'Development', 'V&V', 'Remediation', 'Launch'].index(x) if x in ['Feasibility', 'Development', 'V&V', 'Remediation', 'Launch'] else 99)
-        cols = st.columns(len(phases))
+        phases = ['Feasibility', 'Development', 'V&V', 'Remediation', 'Launch']
+        # Filter unique phases present in the data and sort them according to the defined order
+        present_phases = sorted(
+            active_proj_df['phase'].unique(), 
+            key=lambda x: phases.index(x) if x in phases else 99
+        )
+        cols = st.columns(len(present_phases))
 
-        for i, phase in enumerate(phases):
+        for i, phase in enumerate(present_phases):
             with cols[i]:
                 st.markdown(f"<h5>{phase}</h5>", unsafe_allow_html=True)
                 st.markdown("---")
@@ -67,13 +74,18 @@ def render_plm_cockpit(ssm: SPMOSessionStateManager):
             "late-stage documentation crises and visualize requirements traceability to defend designs during audits.",
             icon="📑"
         )
+        if not dhf_items:
+            st.warning("No DHF document data available.")
+            return
+            
         dhf_df = pd.DataFrame(dhf_items)
         # Calculate DHF completeness per project
-        dhf_completeness = dhf_df[dhf_df['status'] == 'Approved'].groupby('project_id').size() / dhf_df.groupby('project_id').size()
-        dhf_completeness = (dhf_completeness * 100).round(1).reset_index(name='completeness_pct')
+        total_docs = dhf_df.groupby('project_id').size()
+        approved_docs = dhf_df[dhf_df['status'] == 'Approved'].groupby('project_id').size()
+        dhf_completeness = (approved_docs / total_docs * 100).fillna(0).round(1).reset_index(name='completeness_pct')
 
         # Add project name and other details
-        dhf_completeness = pd.merge(dhf_completeness, active_proj_df[['id', 'name', 'phase']], left_on='project_id', right_on='id')
+        dhf_completeness = pd.merge(dhf_completeness, proj_df[['id', 'name', 'phase']], left_on='project_id', right_on='id')
 
         col1, col2 = st.columns([1, 2])
 
@@ -87,14 +99,19 @@ def render_plm_cockpit(ssm: SPMOSessionStateManager):
             selected_project_id_dhf = st.selectbox(
                 "Select Project to View DHF Status",
                 options=active_proj_df['id'],
-                format_func=lambda x: f"{x} - {active_proj_df[active_proj_df['id'] == x]['name'].iloc[0]}"
+                format_func=lambda x: project_name_map.get(x, x)
             )
             if selected_project_id_dhf:
                 project_docs = dhf_df[dhf_df['project_id'] == selected_project_id_dhf]
                 st.dataframe(
                     project_docs[['doc_type', 'status', 'owner']],
                     use_container_width=True,
-                    hide_index=True
+                    hide_index=True,
+                    column_config={
+                        "doc_type": "Document Type",
+                        "status": "Status",
+                        "owner": "Owner"
+                    }
                 )
 
         st.divider()
@@ -103,10 +120,11 @@ def render_plm_cockpit(ssm: SPMOSessionStateManager):
 
         if traceability_data:
             trace_df = pd.DataFrame(traceability_data)
+            unique_trace_projects = trace_df['project_id'].unique()
             selected_project_id_trace = st.selectbox(
                 "Select Project to View Traceability",
-                options=trace_df['project_id'].unique(),
-                format_func=lambda x: f"{x} - {active_proj_df[active_proj_df['id'] == x]['name'].iloc[0]}"
+                options=unique_trace_projects,
+                format_func=lambda x: project_name_map.get(x, x)
             )
             if selected_project_id_trace:
                 fig_sankey = create_traceability_sankey(trace_df[trace_df['project_id'] == selected_project_id_trace])
@@ -132,7 +150,6 @@ def render_plm_cockpit(ssm: SPMOSessionStateManager):
                     "product_name": st.column_config.TextColumn("Product Family", width="large"),
                     "open_capas": st.column_config.NumberColumn("Open CAPAs", help="Number of open Corrective/Preventive Actions against this product line."),
                     "complaint_rate_ytd": st.column_config.ProgressColumn("Complaint Rate (YTD)", help="Complaints per 1000 units shipped. Target < 0.5.", format="%.3f", min_value=0, max_value=1.0),
-                    "sustaining_project_status": st.column_config.TextColumn("Key Sustaining Project Status")
                 }
             )
         else:
