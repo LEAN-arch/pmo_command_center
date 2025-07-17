@@ -16,16 +16,13 @@ import streamlit as st
 
 # --- Robust Path Correction ---
 try:
-    # This attempts to add the project root to the path for robust module imports.
     current_file_path = os.path.abspath(__file__)
     project_root = os.path.dirname(os.path.dirname(current_file_path))
     if project_root not in sys.path:
         sys.path.insert(0, project_root)
-except Exception as e:
-    # Fallback for environments where __file__ is not defined
+except Exception:
     if os.getcwd() not in sys.path:
         sys.path.insert(0, os.getcwd())
-    logging.warning(f"Could not reliably determine project root. Using current working directory. Error: {e}")
 
 # --- Local Application Imports ---
 try:
@@ -71,7 +68,7 @@ def main():
             elif alert['severity'] == 'success':
                 st.success(f"**{alert['type']}:** {alert['message']}", icon="✅")
 
-    # --- Sidebar Navigation (Reorganized for sPMO Workflow) ---
+    # --- Sidebar Navigation ---
     st.sidebar.image("https://www.werfen.com/corp/werfen-web/themes/werfen/images/logo-werfen-blue.svg", width=200)
     st.sidebar.title("sPMO Workspaces")
 
@@ -143,7 +140,7 @@ def main():
     # --- Admin & Settings Footer ---
     with st.sidebar.expander("⚙️ Admin & Settings"):
         st.info("This area is for administrative functions and data management.")
-        if st.button("Force Data Refresh", use_container_width=True, help="Clears all cached data and re-runs the simulation from scratch."):
+        if st.button("Force Data Refresh", use_container_width=True, help="Clears all cached data and reconnects to data sources."):
             st.session_state.clear()
             st.rerun()
 
