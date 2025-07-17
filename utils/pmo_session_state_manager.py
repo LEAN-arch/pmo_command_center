@@ -43,6 +43,7 @@ def _run_automation_engine(projects_df: pd.DataFrame, dhf_df: pd.DataFrame) -> L
                     "severity": "success"
                 })
             
+    # (Resource conflict alerts would be generated in the resource dashboard based on forecast)
     return alerts
 
 def _load_and_process_data() -> Dict[str, Any]:
@@ -54,8 +55,19 @@ def _load_and_process_data() -> Dict[str, Any]:
     projects = dc.get_projects_from_erp()
     dhf_documents = dc.get_dhf_from_qms()
     financials = dc.get_financials_from_erp()
-    # (And so on for all connectors...)
-    
+    resources = dc.get_resources_from_hris()
+    allocations = dc.get_allocations_from_planning_tool()
+    milestones = dc.get_milestones()
+    raid_logs = dc.get_raid_logs()
+    qms_kpis = dc.get_qms_kpis()
+    on_market_products = dc.get_on_market_products_from_qms()
+    traceability_matrix = dc.get_traceability_from_alm()
+    phase_gate_data = dc.get_phase_gate_data()
+    resource_demand_history = dc.get_resource_demand_history()
+    change_controls = dc.get_change_controls()
+    collaborations = dc.get_collaborations()
+    strategic_goals = dc.get_strategic_goals()
+
     # Create DataFrames
     projects_df = pd.DataFrame(projects)
     dhf_df = pd.DataFrame(dhf_documents)
@@ -88,20 +100,20 @@ def _load_and_process_data() -> Dict[str, Any]:
 
     return {
         "projects": projects_df.to_dict('records'),
-        "strategic_goals": dc.get_strategic_goals(),
-        "resources": dc.get_resources_from_hris(),
-        "allocations": dc.get_allocations_from_planning_tool(),
-        "milestones": dc.get_milestones(),
-        "raid_logs": dc.get_raid_logs(),
-        "qms_kpis": dc.get_qms_kpis(),
+        "strategic_goals": strategic_goals,
+        "resources": resources,
+        "allocations": allocations,
+        "milestones": milestones,
+        "raid_logs": raid_logs,
+        "qms_kpis": qms_kpis,
         "financials": financials,
-        "on_market_products": dc.get_on_market_products_from_qms(),
+        "on_market_products": on_market_products,
         "dhf_documents": dhf_df.to_dict('records'),
-        "traceability_matrix": dc.get_traceability_from_alm(),
-        "phase_gate_data": dc.get_phase_gate_data(),
-        "resource_demand_history": dc.get_resource_demand_history(),
-        "change_controls": dc.get_change_controls(),
-        "collaborations": dc.get_collaborations(),
+        "traceability_matrix": traceability_matrix,
+        "phase_gate_data": phase_gate_data,
+        "resource_demand_history": resource_demand_history,
+        "change_controls": change_controls,
+        "collaborations": collaborations,
         "alerts": alerts,
     }
 
@@ -129,25 +141,30 @@ class SPMOSessionStateManager:
 
     def _get_sandboxed_projects(self) -> List[Dict[str, Any]]:
         """Applies sandbox actions to a copy of the project data."""
-        projects_df = pd.DataFrame(st.session_state[self._PMO_DATA_KEY]['projects'])
+        # Ensure we start with the original, unmodified project list
+        original_projects = st.session_state[self._PMO_DATA_KEY]['projects']
+        projects_df = pd.DataFrame(original_projects)
         
-        for action in st.session_state['sandbox_actions']:
+        for action in st.session_state.get('sandbox_actions', []):
             if action['type'] == 'cancel':
                 projects_df = projects_df[projects_df['id'] != action['project_id']]
             elif action['type'] == 'accelerate':
-                # Simulate budget increase and timeline reduction
+                # Simulate budget increase
                 idx = projects_df.index[projects_df['id'] == action['project_id']]
                 if not idx.empty:
+                    # Use .loc to ensure modification happens on the DataFrame
                     projects_df.loc[idx, 'budget_usd'] *= 1.20 # 20% budget increase
-                    # In a real model, end_date would be programmatically reduced
                     
         return projects_df.to_dict('records')
 
     def toggle_sandbox(self):
-        st.session_state['sandbox_mode'] = not st.session_state['sandbox_mode']
-        if not st.session_state['sandbox_mode']:
+        current_mode = st.session_state.get('sandbox_mode', False)
+        st.session_state['sandbox_mode'] = not current_mode
+        if st.session_state['sandbox_mode'] is False:
             # Reset actions when exiting sandbox
             st.session_state['sandbox_actions'] = []
             
     def add_sandbox_action(self, action: Dict[str, Any]):
+        if 'sandbox_actions' not in st.session_state:
+            st.session_state['sandbox_actions'] = []
         st.session_state['sandbox_actions'].append(action)
