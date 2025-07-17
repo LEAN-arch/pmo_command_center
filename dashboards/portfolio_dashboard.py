@@ -15,16 +15,10 @@ def calculate_health_score(project_row: pd.Series) -> float:
     A higher score is better.
     """
     weights = {'spi': 0.4, 'cpi': 0.4, 'risk': 0.2}
-    
-    # Normalize SPI and CPI to a 0-100 scale, clipping at 0 and 100
     spi_score = np.clip(project_row.get('spi', 0) * 100, 0, 100)
     cpi_score = np.clip(project_row.get('cpi', 0) * 100, 0, 100)
-    
-    # Invert and normalize risk score (a high risk_score of 10 becomes 0, a low of 1 becomes 100)
     risk_score_val = project_row.get('risk_score', 5)
     risk_score = np.clip(((10 - risk_score_val) / 9) * 100, 0, 100)
-
-    # Calculate the weighted average
     weighted_score = (
         spi_score * weights['spi'] +
         cpi_score * weights['cpi'] +
@@ -47,12 +41,10 @@ def render_portfolio_dashboard(ssm: SPMOSessionStateManager):
     active_df = df[df['health_status'] != "Completed"].copy()
 
     if not active_df.empty:
-        # Calculate the objective health score for each active project
         active_df['health_score'] = active_df.apply(calculate_health_score, axis=1)
-        # Calculate the portfolio-wide health score, weighted by project budget
         portfolio_health = np.average(active_df['health_score'], weights=active_df['budget_usd'])
     else:
-        portfolio_health = 100.0 # Default to 100 if no active projects
+        portfolio_health = 100.0
 
     st.subheader("Executive KPIs")
     total_budget = df['budget_usd'].sum()
@@ -60,38 +52,15 @@ def render_portfolio_dashboard(ssm: SPMOSessionStateManager):
     open_capas = qms_kpis.get("open_capas", 0)
 
     kpi_cols = st.columns(4)
-    kpi_cols[0].metric(
-        "Portfolio Health Score",
-        f"{portfolio_health:.1f}/100",
-        help="An objective, budget-weighted health score derived from project CPI, SPI, and Risk scores. Target > 85."
-    )
-    kpi_cols[1].metric(
-        "Active Projects",
-        len(active_df),
-        help="Total number of active New Product Development (NPD) and Lifecycle Management (LCM) projects."
-    )
-    kpi_cols[2].metric(
-        "Portfolio Budget Burn",
-        f"{(total_actuals / total_budget) * 100:.1f}%" if total_budget > 0 else "0%",
-        f"${total_actuals:,.0f} / ${total_budget:,.0f}",
-        help="Total actual spend versus total approved budget for all projects."
-    )
-    kpi_cols[3].metric(
-        "Open CAPAs (QMS Health)",
-        open_capas,
-        delta=f"{qms_kpis.get('overdue_capas', 0)} Overdue",
-        delta_color="inverse",
-        help=f"A leading indicator of QMS health per 21 CFR 820.100. High numbers can indicate systemic quality issues."
-    )
+    kpi_cols[0].metric("Portfolio Health Score", f"{portfolio_health:.1f}/100", help="An objective, budget-weighted health score derived from project CPI, SPI, and Risk scores. Target > 85.")
+    kpi_cols[1].metric("Active Projects", len(active_df), help="Total number of active New Product Development (NPD) and Lifecycle Management (LCM) projects.")
+    kpi_cols[2].metric("Portfolio Budget Burn", f"{(total_actuals / total_budget) * 100:.1f}%" if total_budget > 0 else "0%", f"${total_actuals:,.0f} / ${total_budget:,.0f}", help="Total actual spend versus total approved budget for all projects.")
+    kpi_cols[3].metric("Open CAPAs (QMS Health)", open_capas, delta=f"{qms_kpis.get('overdue_capas', 0)} Overdue", delta_color="inverse", help=f"A leading indicator of QMS health per 21 CFR 820.100. High numbers can indicate systemic quality issues.")
 
     st.divider()
 
     st.subheader("Portfolio Landscape: Strategy vs. Risk")
-    st.info(
-        "**How to read this chart:** This is a strategic view of the entire portfolio, balancing project risk against strategic value to the business. "
-        "The **Top-Left (High Value, Low Risk)** is the ideal quadrant. **Bubble Size** represents budget.",
-        icon="💡"
-    )
+    st.info("**How to read this chart:** This is a strategic view of the entire portfolio, balancing project risk against strategic value to the business. The **Top-Left (High Value, Low Risk)** is the ideal quadrant. **Bubble Size** represents budget.", icon="💡")
 
     fig = create_portfolio_bubble_chart(df)
     st.plotly_chart(fig, use_container_width=True)
@@ -102,20 +71,17 @@ def render_portfolio_dashboard(ssm: SPMOSessionStateManager):
     st.caption("Detailed, objective health scores for each active project. Click column headers to sort.")
 
     def color_health_score(score):
-        """Applies color to the health score cell based on value."""
-        if score >= 85: color = '#d4edda' # light green
-        elif score >= 65: color = '#fff3cd' # light yellow
-        else: color = '#f8d7da' # light red
+        if score >= 85: color = '#d4edda'
+        elif score >= 65: color = '#fff3cd'
+        else: color = '#f8d7da'
         return f'background-color: {color};'
 
     if not active_df.empty:
-        display_df = active_df[[
-            'name', 'project_type', 'phase', 'pm', 'health_score', 'cpi', 'spi', 'risk_score', 'health_status'
-        ]].copy()
+        display_df = active_df[['name', 'project_type', 'phase', 'pm', 'health_score', 'cpi', 'spi', 'risk_score', 'health_status']].copy()
 
-        # Apply styling to the DataFrame for better visual cues
+        # --- FIX: Updated deprecated 'applymap' to 'map' to resolve FutureWarning ---
         st.dataframe(
-            display_df.style.applymap(
+            display_df.style.map(
                 color_health_score, subset=['health_score']
             ).format({
                 'health_score': '{:.1f}',
