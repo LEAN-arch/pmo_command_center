@@ -1,4 +1,3 @@
-# pmo_command_center/dashboards/portfolio_dashboard.py
 """
 This module renders the main Executive Portfolio Dashboard. It provides at-a-glance
 KPIs, a strategic view of projects, and a summary table featuring an automated,
@@ -11,12 +10,21 @@ from utils.pmo_session_state_manager import SPMOSessionStateManager
 from utils.plot_utils import create_portfolio_bubble_chart
 
 def calculate_health_score(project_row: pd.Series) -> float:
-    """Calculates a weighted health score for a project."""
+    """
+    Calculates a weighted, objective health score (0-100) for a project.
+    A higher score is better.
+    """
     weights = {'spi': 0.4, 'cpi': 0.4, 'risk': 0.2}
+    
+    # Normalize SPI and CPI to a 0-100 scale, clipping at 0 and 100
     spi_score = np.clip(project_row.get('spi', 0) * 100, 0, 100)
     cpi_score = np.clip(project_row.get('cpi', 0) * 100, 0, 100)
+    
+    # Invert and normalize risk score (a high risk_score of 10 becomes 0, a low of 1 becomes 100)
     risk_score_val = project_row.get('risk_score', 5)
-    risk_score = (10 - risk_score_val) / 9 * 100
+    risk_score = np.clip(((10 - risk_score_val) / 9) * 100, 0, 100)
+
+    # Calculate the weighted average
     weighted_score = (
         spi_score * weights['spi'] +
         cpi_score * weights['cpi'] +
@@ -39,10 +47,12 @@ def render_portfolio_dashboard(ssm: SPMOSessionStateManager):
     active_df = df[df['health_status'] != "Completed"].copy()
 
     if not active_df.empty:
+        # Calculate the objective health score for each active project
         active_df['health_score'] = active_df.apply(calculate_health_score, axis=1)
+        # Calculate the portfolio-wide health score, weighted by project budget
         portfolio_health = np.average(active_df['health_score'], weights=active_df['budget_usd'])
     else:
-        portfolio_health = 100
+        portfolio_health = 100.0 # Default to 100 if no active projects
 
     st.subheader("Executive KPIs")
     total_budget = df['budget_usd'].sum()
@@ -71,7 +81,7 @@ def render_portfolio_dashboard(ssm: SPMOSessionStateManager):
         open_capas,
         delta=f"{qms_kpis.get('overdue_capas', 0)} Overdue",
         delta_color="inverse",
-        help=f"A leading indicator of QMS health per 21 CFR 820.100."
+        help=f"A leading indicator of QMS health per 21 CFR 820.100. High numbers can indicate systemic quality issues."
     )
 
     st.divider()
@@ -89,41 +99,42 @@ def render_portfolio_dashboard(ssm: SPMOSessionStateManager):
     st.divider()
 
     st.subheader("Project Health Scorecard")
-    st.caption("Detailed, objective health scores for each active project.")
+    st.caption("Detailed, objective health scores for each active project. Click column headers to sort.")
 
     def color_health_score(score):
-        if score >= 85: color = '#2ca02c'
-        elif score >= 65: color = '#ff7f0e'
-        else: color = '#d62728'
-        return f'background-color: {color}; color: white; font-weight: bold;'
+        """Applies color to the health score cell based on value."""
+        if score >= 85: color = '#d4edda' # light green
+        elif score >= 65: color = '#fff3cd' # light yellow
+        else: color = '#f8d7da' # light red
+        return f'background-color: {color};'
 
     if not active_df.empty:
         display_df = active_df[[
-            'name', 'project_type', 'phase', 'pm', 'health_score', 'cpi', 'spi', 'risk_score'
+            'name', 'project_type', 'phase', 'pm', 'health_score', 'cpi', 'spi', 'risk_score', 'health_status'
         ]].copy()
 
-        styled_df = display_df.style.map(
-            color_health_score, subset=['health_score']
-        ).format({
-            'health_score': '{:.1f}',
-            'cpi': '{:.2f}',
-            'spi': '{:.2f}'
-        })
-
+        # Apply styling to the DataFrame for better visual cues
         st.dataframe(
-            styled_df,
+            display_df.style.applymap(
+                color_health_score, subset=['health_score']
+            ).format({
+                'health_score': '{:.1f}',
+                'cpi': '{:.2f}',
+                'spi': '{:.2f}'
+            }),
             use_container_width=True,
             hide_index=True,
             column_config={
                 "name": st.column_config.TextColumn("Project Name", width="large"),
                 "project_type": st.column_config.TextColumn("Type"),
-                "phase": st.column_config.TextColumn("Current Phase"),
+                "phase": st.column_config.TextColumn("Phase"),
                 "pm": st.column_config.TextColumn("Project Manager"),
-                "health_score": st.column_config.TextColumn("Health Score"),
-                "cpi": st.column_config.TextColumn("CPI"),
-                "spi": st.column_config.TextColumn("SPI"),
-                "risk_score": st.column_config.TextColumn("Risk"),
+                "health_score": st.column_config.NumberColumn("Health Score", help="Objective score (0-100). Higher is better."),
+                "cpi": st.column_config.NumberColumn("CPI", help="Cost Performance Index"),
+                "spi": st.column_config.NumberColumn("SPI", help="Schedule Performance Index"),
+                "risk_score": st.column_config.NumberColumn("Risk", help="Inherent project risk (1-10). Lower is better."),
+                "health_status": st.column_config.TextColumn("Reported Status"),
             }
         )
     else:
-        st.info("No active projects to display.")
+        st.info("No active projects to display in the scorecard.")
