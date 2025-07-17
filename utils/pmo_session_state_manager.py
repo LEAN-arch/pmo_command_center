@@ -60,7 +60,7 @@ def _create_spmo_model(version: float) -> Dict[str, Any]:
          "budget_usd": 3000000, "actuals_usd": 2800000, "pv_usd": 3000000, "ev_usd": 3000000, "start_date": base_date, "end_date": base_date + timedelta(days=550), "completion_pct": 100, "final_outcome": "On-Time"},
     ]
 
-    # --- 10++ Feature: On-Market Product Data ---
+    # --- On-Market Product Data ---
     on_market_products = [
         {"product_name": "Aptiva® System & Reagents", "open_capas": 3, "complaint_rate_ytd": 0.35, "sustaining_project_status": "On Track - SW v2.1 Patch"},
         {"product_name": "QUANTA Flash® Reagents", "open_capas": 1, "complaint_rate_ytd": 0.15, "sustaining_project_status": "Monitoring Supplier"},
@@ -68,7 +68,7 @@ def _create_spmo_model(version: float) -> Dict[str, Any]:
         {"product_name": "NOVA View® System", "open_capas": 0, "complaint_rate_ytd": 0.08, "sustaining_project_status": "On Track"},
     ]
 
-    # --- 3. Resources ---
+    # --- Resources ---
     resources = [
         {"name": "Alice Weber", "role": "Instrument R&D", "cost_per_hour": 110, "capacity_hours_week": 40},
         {"name": "Bob Chen", "role": "Software R&D", "cost_per_hour": 100, "capacity_hours_week": 40},
@@ -85,7 +85,7 @@ def _create_spmo_model(version: float) -> Dict[str, Any]:
         {"project_id": "LCM-002", "resource_name": "Diana Evans", "allocated_hours_week": 30}, {"project_id": "LCM-002", "resource_name": "Henry Ford", "allocated_hours_week": 20},
     ]
 
-    # --- 4. Milestones & Change Controls ---
+    # --- Milestones & Change Controls ---
     milestones = [
         {"project_id": "NPD-001", "milestone": "Assay Design Lock", "due_date": (base_date + timedelta(days=300)).isoformat(), "status": "Completed"},
         {"project_id": "NPD-001", "milestone": "V&V Start", "due_date": (base_date + timedelta(days=450)).isoformat(), "status": "At Risk"},
@@ -93,13 +93,12 @@ def _create_spmo_model(version: float) -> Dict[str, Any]:
         {"project_id": "NPD-002", "milestone": "Prototype Complete", "due_date": (base_date + timedelta(days=400)).isoformat(), "status": "Completed"},
     ]
     
-    # *** FIX 1: RESTORE THE CHANGE CONTROLS DATA ***
     change_controls = [
         {"dcr_id": "DCR-24-001", "project_id": "NPD-001", "description": "Change primary antibody supplier due to performance issues.", "status": "Approved"},
         {"dcr_id": "DCR-24-002", "project_id": "NPD-002", "description": "Update embedded OS to new version for security patch.", "status": "In Review"},
     ]
     
-    # --- 5. Centralized RAID Log ---
+    # --- Centralized RAID Log ---
     raid_logs = [
         {"log_id": "R-001", "project_id": "NPD-001", "type": "Risk", "description": "Key sensor supplier fails to meet quality specs.", "owner": "Henry Ford", "status": "Mitigating", "due_date": (date.today() + timedelta(days=30)).isoformat()},
         {"log_id": "I-001", "project_id": "NPD-001", "type": "Issue", "description": "Test batch #3 showed unexpected cross-reactivity.", "owner": "Charlie Day", "status": "In Progress", "due_date": (date.today() + timedelta(days=7)).isoformat()},
@@ -108,7 +107,7 @@ def _create_spmo_model(version: float) -> Dict[str, Any]:
         {"log_id": "A-001", "project_id": "NPD-003", "type": "Assumption", "description": "Novel biomarker chemistry is stable at scale.", "owner": "Sofia Chen", "status": "Open", "due_date": (date.today() + timedelta(days=120)).isoformat()},
     ]
 
-    # --- 6. DHF and Traceability Data ---
+    # --- DHF and Traceability Data ---
     dhf_documents = [
         {"doc_id": "DHF-N001-01", "project_id": "NPD-001", "doc_type": "Design & Development Plan", "status": "Approved", "owner": "John Smith"},
         {"doc_id": "DHF-N001-02", "project_id": "NPD-001", "doc_type": "User Needs & Requirements", "status": "Approved", "owner": "John Smith"},
@@ -125,7 +124,7 @@ def _create_spmo_model(version: float) -> Dict[str, Any]:
         {"project_id": "NPD-002", "source": "SW Req 1.2: Encrypt at Rest", "target": "Test Case 102: Data Encryption", "value": 1},
     ]
 
-    # --- 7. Full Financials & Phase Gate Data ---
+    # --- Full Financials & Phase Gate Data ---
     financials, phase_gate_data = [], []
     for p in projects:
         project_start_date = pd.to_datetime(p['start_date'])
@@ -157,7 +156,7 @@ def _create_spmo_model(version: float) -> Dict[str, Any]:
             phase_gate_data.append({"project_id": p['id'], "gate_name": "Gate 2: Feasibility", "planned_date": (project_start_date + timedelta(days=180)).isoformat(), "actual_date": (project_start_date + timedelta(days=190)).isoformat() if p['id'] != 'NPD-003' else None})
             phase_gate_data.append({"project_id": p['id'], "gate_name": "Gate 3: Development", "planned_date": (project_start_date + timedelta(days=400)).isoformat(), "actual_date": (project_start_date + timedelta(days=450)).isoformat() if p['id'] in ['NPD-001', 'NPD-H02', 'NPD-H01'] else None})
 
-    # --- 8. QMS & Time Series Data ---
+    # --- QMS & Time Series Data ---
     qms_kpis = {"open_capas": 8, "overdue_capas": 2, "internal_audit_findings_open": 5, "overdue_training_records": 12}
     resource_demand_history = []
     for role in ["Instrument R&D", "Software R&D", "Assay R&D", "RA/QA", "Clinical Affairs", "Operations"]:
@@ -181,8 +180,7 @@ def _create_spmo_model(version: float) -> Dict[str, Any]:
         "on_market_products": on_market_products, "dhf_documents": dhf_documents,
         "traceability_matrix": traceability_matrix, "phase_gate_data": phase_gate_data,
         "resource_demand_history": resource_demand_history,
-        # *** FIX 2: ADD CHANGE CONTROLS TO THE RETURNED DICTIONARY ***
-        "change_controls": change_controls,
+        "change_controls": change_controls, # *** DEFINITIVE FIX ***
     }
 
 
