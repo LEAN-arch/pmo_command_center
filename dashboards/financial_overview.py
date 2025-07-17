@@ -8,47 +8,8 @@ and personnel.
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from sklearn.ensemble import IsolationForest
-from prophet import Prophet
 from utils.pmo_session_state_manager import SPMOSessionStateManager
 from utils.plot_utils import create_financial_burn_chart, create_evm_performance_chart, create_capacity_plan_chart
-
-@st.cache_data
-def find_spending_anomalies(_fin_df: pd.DataFrame):
-    """Uses Isolation Forest to detect anomalous monthly spending."""
-    if _fin_df.empty or 'type' not in _fin_df.columns:
-        return pd.DataFrame()
-
-    actuals_df = _fin_df[_fin_df['type'] == 'Actuals'].copy()
-    if actuals_df.empty:
-        return pd.DataFrame()
-
-    monthly_spend = actuals_df.groupby([pd.to_datetime(actuals_df['date']).dt.to_period('M'), 'project_id'])['amount'].sum().reset_index()
-    if len(monthly_spend) < 2:
-        return pd.DataFrame()
-
-    model = IsolationForest(contamination='auto', random_state=42)
-    predictions = model.fit_predict(monthly_spend[['amount']])
-
-    monthly_spend['anomaly'] = predictions
-    anomalous_data = monthly_spend[monthly_spend['anomaly'] == -1].copy()
-    if not anomalous_data.empty:
-        anomalous_data['date'] = anomalous_data['date'].dt.to_timestamp()
-    return anomalous_data
-
-@st.cache_data
-def get_resource_forecast(_demand_history_df: pd.DataFrame, role: str, periods: int):
-    """Trains a Prophet time-series model and returns a forecast for a specific role."""
-    df_role = _demand_history_df[_demand_history_df['role'] == role].copy()
-    df_prophet = df_role[['date', 'demand_hours']].rename(columns={'date': 'ds', 'demand_hours': 'y'})
-    if len(df_prophet) < 12:
-        return None
-
-    model = Prophet(yearly_seasonality=True, weekly_seasonality=False, daily_seasonality=False, changepoint_prior_scale=0.05)
-    model.fit(df_prophet)
-    future = model.make_future_dataframe(periods=periods, freq='MS')
-    forecast = model.predict(future)
-    return forecast
 
 def render_financial_dashboard(ssm: SPMOSessionStateManager):
     """Renders the portfolio financial analysis and capacity planning dashboard."""
@@ -76,39 +37,22 @@ def render_financial_dashboard(ssm: SPMOSessionStateManager):
         st.subheader("Portfolio Financial Health")
         total_budget = proj_df['budget_usd'].sum()
         total_actuals = proj_df['actuals_usd'].sum()
-        portfolio_eac = proj_df['eac_usd'].sum()
+        
+        # Calculate both formula-based and AI-predicted EAC for the portfolio
+        proj_df['formula_eac'] = proj_df.apply(lambda row: row['budget_usd'] / row['cpi'] if row['cpi'] > 0 else row['budget_usd'], axis=1)
+        portfolio_formula_eac = proj_df['formula_eac'].sum()
+        portfolio_predicted_eac = proj_df['predicted_eac_usd'].sum()
 
-        kpi_cols = st.columns(3)
+
+        kpi_cols = st.columns(4)
         kpi_cols[0].metric("Total Portfolio Budget (BAC)", f"${total_budget:,.0f}")
         kpi_cols[1].metric("Total Actuals to Date (AC)", f"${total_actuals:,.0f}")
-        kpi_cols[2].metric("Forecast at Completion (EAC)", f"${portfolio_eac:,.0f}", delta=f"${(portfolio_eac - total_budget):,.0f} vs BAC", delta_color="inverse")
+        kpi_cols[2].metric("Formula EAC", f"${portfolio_formula_eac:,.0f}", delta=f"${(portfolio_formula_eac - total_budget):,.0f} vs BAC", delta_color="inverse")
+        kpi_cols[3].metric("AI-Predicted EAC", f"${portfolio_predicted_eac:,.0f}", delta=f"${(portfolio_predicted_eac - total_budget):,.0f} vs BAC", delta_color="inverse", help="AI forecast of final cost based on performance and project characteristics.")
 
-        st.subheader("🧠 AI-Powered Anomaly Detection in Project Spend")
-        anomalies = find_spending_anomalies(fin_df)
-        if not anomalies.empty:
-            st.error(f"**{len(anomalies)} unusual spending events detected.** These months may warrant investigation.", icon="🚨")
-        else:
-            st.success("No significant spending anomalies detected in historical data.", icon="✅")
-
-        anomaly_dates = anomalies['date'].tolist() if not anomalies.empty else None
-        fig_portfolio_burn = create_financial_burn_chart(fin_df, "Portfolio Financial Burn", anomaly_dates)
+        st.subheader("Portfolio Financial Burn")
+        fig_portfolio_burn = create_financial_burn_chart(fin_df, "Portfolio Financial Burn")
         st.plotly_chart(fig_portfolio_burn, use_container_width=True)
-
-        st.subheader("Spend Analysis")
-        col1, col2 = st.columns(2)
-        with col1:
-            st.info("Analyze how the portfolio budget is distributed across spending categories.", icon="📊")
-            actuals_by_cat = fin_df[fin_df['type'] == 'Actuals'].groupby('category')['amount'].sum().reset_index()
-            fig_cat_spend = px.pie(actuals_by_cat, names='category', values='amount', title='Actual Spend by Category (Portfolio-wide)', hole=0.4)
-            st.plotly_chart(fig_cat_spend, use_container_width=True)
-        with col2:
-            st.info("Compare budget variance for each active project to identify top contributors.", icon="🎯")
-            active_proj_df = proj_df[proj_df['health_status'] != 'Completed'].copy()
-            active_proj_df['variance'] = active_proj_df['actuals_usd'] - active_proj_df['budget_usd']
-            fig_proj_var = px.bar(active_proj_df.sort_values('variance'), x='name', y='variance', title='Budget Variance by Active Project',
-                                  labels={'name': 'Project', 'variance': 'Variance (USD)'}, color='variance', color_continuous_scale='RdYlGn_r')
-            fig_proj_var.update_layout(coloraxis_showscale=False, xaxis_title=None)
-            st.plotly_chart(fig_proj_var, use_container_width=True)
 
     # --- Earned Value Management Tab ---
     with tab2:
@@ -134,29 +78,36 @@ def render_financial_dashboard(ssm: SPMOSessionStateManager):
             return
 
         demand_df = pd.DataFrame(demand_history)
-        demand_df['date'] = pd.to_datetime(demand_df['date'])
         res_df = pd.DataFrame(resources)
         
-        # Calculate capacity per role
-        capacity_per_role = res_df.groupby('role')['capacity_hours_week'].sum() * 4.33 # Monthly capacity
+        capacity_per_role = res_df.groupby('role')['capacity_hours_week'].sum() * 4.33
         
         role_to_forecast = st.selectbox("Select a Functional Role to Forecast", options=res_df['role'].unique())
         
         if role_to_forecast:
-            forecast = get_resource_forecast(demand_df, role_to_forecast, 12)
-            if forecast is not None:
+            # This would ideally use a more advanced forecasting model from ml_models.py
+            # For simplicity, we keep the original logic here for now.
+            from prophet import Prophet
+            
+            df_role = demand_df[demand_df['role'] == role_to_forecast].copy()
+            df_prophet = df_role[['date', 'demand_hours']].rename(columns={'date': 'ds', 'demand_hours': 'y'})
+            
+            if len(df_prophet) > 12:
+                model = Prophet()
+                model.fit(df_prophet)
+                future = model.make_future_dataframe(periods=12, freq='MS')
+                forecast = model.predict(future)
+                
                 fig_capacity = create_capacity_plan_chart(forecast, capacity_per_role, role_to_forecast)
                 st.plotly_chart(fig_capacity, use_container_width=True)
-                
-                # Identify future state
+
                 future_demand = forecast[forecast['ds'] > pd.to_datetime('today')].copy()
-                future_demand['gap'] = future_demand['yhat'] - capacity_per_role[role_to_forecast]
-                
+                future_demand['gap'] = future_demand['yhat'] - capacity_per_role.get(role_to_forecast, 0)
                 peak_gap = future_demand['gap'].max()
+
                 if peak_gap > 0:
-                    st.error(f"**Projected Shortfall:** A peak resource gap of **{peak_gap:,.0f} hours/month** is predicted for **{role_to_forecast}**. "
-                             "Action may be required (e.g., hiring, re-prioritizing projects) to mitigate this future constraint.", icon="🚨")
+                    st.error(f"**Projected Shortfall:** A peak resource gap of **{peak_gap:,.0f} hours/month** is predicted for **{role_to_forecast}**.", icon="🚨")
                 else:
-                    st.success(f"**Sufficient Capacity:** Current capacity for **{role_to_forecast}** appears sufficient to meet forecasted demand for the next 12 months.", icon="✅")
+                    st.success(f"**Sufficient Capacity:** Current capacity for **{role_to_forecast}** appears sufficient.", icon="✅")
             else:
-                 st.warning(f"Not enough historical data for '{role_to_forecast}' to generate a reliable forecast.")
+                st.warning(f"Not enough historical data for '{role_to_forecast}' to generate a forecast.")
