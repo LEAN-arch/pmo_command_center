@@ -85,15 +85,21 @@ def _create_spmo_model(version: float) -> Dict[str, Any]:
         {"project_id": "LCM-002", "resource_name": "Diana Evans", "allocated_hours_week": 30}, {"project_id": "LCM-002", "resource_name": "Henry Ford", "allocated_hours_week": 20},
     ]
 
-    # --- 4. Milestones, Risks ---
+    # --- 4. Milestones & Change Controls ---
     milestones = [
         {"project_id": "NPD-001", "milestone": "Assay Design Lock", "due_date": (base_date + timedelta(days=300)).isoformat(), "status": "Completed"},
         {"project_id": "NPD-001", "milestone": "V&V Start", "due_date": (base_date + timedelta(days=450)).isoformat(), "status": "At Risk"},
         {"project_id": "NPD-001", "milestone": "510(k) Submission", "due_date": (base_date + timedelta(days=700)).isoformat(), "status": "Pending"},
         {"project_id": "NPD-002", "milestone": "Prototype Complete", "due_date": (base_date + timedelta(days=400)).isoformat(), "status": "Completed"},
     ]
-
-    # --- 5. 10++ Feature: Centralized RAID Log ---
+    
+    # *** FIX 1: RESTORE THE CHANGE CONTROLS DATA ***
+    change_controls = [
+        {"dcr_id": "DCR-24-001", "project_id": "NPD-001", "description": "Change primary antibody supplier due to performance issues.", "status": "Approved"},
+        {"dcr_id": "DCR-24-002", "project_id": "NPD-002", "description": "Update embedded OS to new version for security patch.", "status": "In Review"},
+    ]
+    
+    # --- 5. Centralized RAID Log ---
     raid_logs = [
         {"log_id": "R-001", "project_id": "NPD-001", "type": "Risk", "description": "Key sensor supplier fails to meet quality specs.", "owner": "Henry Ford", "status": "Mitigating", "due_date": (date.today() + timedelta(days=30)).isoformat()},
         {"log_id": "I-001", "project_id": "NPD-001", "type": "Issue", "description": "Test batch #3 showed unexpected cross-reactivity.", "owner": "Charlie Day", "status": "In Progress", "due_date": (date.today() + timedelta(days=7)).isoformat()},
@@ -102,7 +108,7 @@ def _create_spmo_model(version: float) -> Dict[str, Any]:
         {"log_id": "A-001", "project_id": "NPD-003", "type": "Assumption", "description": "Novel biomarker chemistry is stable at scale.", "owner": "Sofia Chen", "status": "Open", "due_date": (date.today() + timedelta(days=120)).isoformat()},
     ]
 
-    # --- 6. 10++ Feature: DHF and Traceability Data ---
+    # --- 6. DHF and Traceability Data ---
     dhf_documents = [
         {"doc_id": "DHF-N001-01", "project_id": "NPD-001", "doc_type": "Design & Development Plan", "status": "Approved", "owner": "John Smith"},
         {"doc_id": "DHF-N001-02", "project_id": "NPD-001", "doc_type": "User Needs & Requirements", "status": "Approved", "owner": "John Smith"},
@@ -125,14 +131,9 @@ def _create_spmo_model(version: float) -> Dict[str, Any]:
         project_start_date = pd.to_datetime(p['start_date'])
         project_end_date = pd.to_datetime(p['end_date'])
         project_duration_months = max(1, (project_end_date - project_start_date).days / 30.0)
-
-        # *** FIX IS HERE ***
-        # Ensure both objects are Timestamps before subtraction.
         months_elapsed = max(0, (pd.to_datetime(date.today()) - project_start_date).days / 30.0)
-
         if p['health_status'] == 'Completed':
             months_elapsed = project_duration_months
-
         if months_elapsed > 0:
             for i in range(int(project_duration_months)):
                 month_date = project_start_date + pd.DateOffset(months=i)
@@ -141,7 +142,6 @@ def _create_spmo_model(version: float) -> Dict[str, Any]:
                 financials.append({"project_id": p['id'], "date": month_date.isoformat(), "type": "Planned", "category": "Clinical/Reg", "amount": planned_spend * 0.2})
                 financials.append({"project_id": p['id'], "date": month_date.isoformat(), "type": "Planned", "category": "Capex", "amount": planned_spend * 0.1})
                 financials.append({"project_id": p['id'], "date": month_date.isoformat(), "type": "Planned", "category": "Other G&A", "amount": planned_spend * 0.1})
-                
                 if i < months_elapsed:
                     spend_factor = 1.2 if p['risk_score'] > 6 else 1.0
                     actual_spend_total = planned_spend * np.random.uniform(0.9, 1.1) * spend_factor
@@ -181,6 +181,8 @@ def _create_spmo_model(version: float) -> Dict[str, Any]:
         "on_market_products": on_market_products, "dhf_documents": dhf_documents,
         "traceability_matrix": traceability_matrix, "phase_gate_data": phase_gate_data,
         "resource_demand_history": resource_demand_history,
+        # *** FIX 2: ADD CHANGE CONTROLS TO THE RETURNED DICTIONARY ***
+        "change_controls": change_controls,
     }
 
 
