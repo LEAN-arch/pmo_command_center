@@ -7,7 +7,7 @@ Quality Management System health, crucial for a regulated environment like Werfe
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import random  # <-- FIX: Import the 'random' module
+import random
 from utils.pmo_session_state_manager import SPMOSessionStateManager
 
 def render_risk_dashboard(ssm: SPMOSessionStateManager):
@@ -100,5 +100,4 @@ def render_risk_dashboard(ssm: SPMOSessionStateManager):
             "probability": st.column_config.NumberColumn("P", help="Probability (1-5)"),
             "impact": st.column_config.NumberColumn("I", help="Impact (1-5)")
         }
-    )
     )
