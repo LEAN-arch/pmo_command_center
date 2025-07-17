@@ -3,12 +3,14 @@
 Contains reusable, high-level plotting functions for creating the various
 dashboards in the sPMO Command Center. This module is designed to produce
 elegant, insightful, and commercial-grade visualizations, including those
-for machine learning model interpretation.
+for machine learning model interpretation and advanced PMO analytics.
 """
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
 from datetime import date
+
+# --- Portfolio & Project Plots ---
 
 def create_portfolio_bubble_chart(df: pd.DataFrame) -> go.Figure:
     """
@@ -47,80 +49,24 @@ def create_portfolio_bubble_chart(df: pd.DataFrame) -> go.Figure:
     )
     return fig
 
-def create_resource_heatmap(df: pd.DataFrame, utilization_df: pd.DataFrame) -> go.Figure:
-    """Creates a professional heatmap of resource allocation."""
-    pivot_df = df.pivot(index='resource_name', columns='project_id', values='allocated_hours_week').fillna(0)
-    
-    hover_text = []
-    for r_name in pivot_df.index:
-        row_text = []
-        util_pct = utilization_df.loc[utilization_df['name'] == r_name, 'utilization_pct'].iloc[0]
-        for p_name in pivot_df.columns:
-            alloc_hours = pivot_df.loc[r_name, p_name]
-            row_text.append(f"<b>{r_name} on {p_name}</b><br>Hours: {alloc_hours}<br>Total Utilization: {util_pct:.0f}%")
-        hover_text.append(row_text)
-
-    fig = go.Figure(data=go.Heatmap(
-        z=pivot_df.values,
-        x=pivot_df.columns,
-        y=pivot_df.index,
-        colorscale='Reds',
-        hovertemplate='%{customdata}<extra></extra>',
-        customdata=hover_text,
-        text=pivot_df.values,
-        texttemplate="%{text}"
-    ))
-
-    fig.update_layout(
-        title="<b>Resource Allocation Heatmap (Hours per Week)</b>",
-        xaxis_title="Project ID",
-        yaxis_title="Resource",
-        height=500,
-        yaxis_autorange='reversed'
-    )
+def create_risk_contribution_plot(contribution_df: pd.DataFrame, title: str) -> go.Figure:
+    """Creates an interpretable bar chart for ML risk model contributions."""
+    contribution_df['color'] = contribution_df['contribution'].apply(lambda x: '#d62728' if x > 0 else '#2ca02c') # Red for risk, green for safety
+    fig = px.bar(contribution_df.sort_values('contribution'), x='contribution', y='feature', orientation='h',
+                 title=title, labels={'contribution': "Impact on Risk (Log-Odds)", 'feature': 'Risk Factor'},
+                 text='contribution')
+    fig.update_traces(marker_color=contribution_df['color'], texttemplate='%{text:.3f}', textposition='outside')
+    fig.update_layout(showlegend=False, yaxis_title=None)
+    fig.add_vline(x=0, line_width=1, line_dash="dash", line_color="black")
     return fig
 
-def create_gate_variance_plot(df: pd.DataFrame) -> go.Figure:
-    """Creates a bar chart showing the variance between planned and actual gate dates."""
-    df = df.copy()
-    df['planned_date'] = pd.to_datetime(df['planned_date'])
-    df['actual_date'] = pd.to_datetime(df['actual_date'])
-    df_filtered = df.dropna(subset=['actual_date'])
-
-    if df_filtered.empty:
-        fig = go.Figure().update_layout(
-            title="No completed gates to analyze.",
-            xaxis_visible=False, yaxis_visible=False,
-            annotations=[dict(text="No Data", xref="paper", yref="paper", showarrow=False, font=dict(size=20))]
-        )
-        return fig
-
-    df_filtered['variance_days'] = (df_filtered['actual_date'] - df_filtered['planned_date']).dt.days
-    avg_variance = df_filtered.groupby('gate_name')['variance_days'].mean().reset_index().sort_values('variance_days')
-
-    fig = px.bar(
-        avg_variance,
-        x='gate_name',
-        y='variance_days',
-        title='Average Gate Schedule Variance (Actual vs. Planned)',
-        labels={'gate_name': 'Phase Gate', 'variance_days': 'Average Variance (Days)'},
-        color='variance_days',
-        color_continuous_scale='RdYlGn_r',
-        text='variance_days'
-    )
-    fig.update_traces(texttemplate='%{text}d', textposition='outside')
-    fig.update_layout(
-        coloraxis_showscale=False,
-        xaxis={'categoryorder':'total descending'}
-    )
-    fig.add_hline(y=0, line_width=2, line_dash="dash", line_color="black")
-    return fig
+# --- Financial & EVM Plots (10++ Enhancement) ---
 
 def create_financial_burn_chart(df: pd.DataFrame, title: str, anomaly_dates: list = None) -> go.Figure:
     """Creates a financial burn chart, with optional markers for anomalies."""
     if df.empty:
         return go.Figure().update_layout(title_text=f"No Financial Data for {title}", xaxis_visible=False, yaxis_visible=False)
-    
+
     df = df.copy()
     df['date'] = pd.to_datetime(df['date'])
     today = pd.to_datetime(date.today())
@@ -139,46 +85,132 @@ def create_financial_burn_chart(df: pd.DataFrame, title: str, anomaly_dates: lis
 
     fig.update_layout(
         title=f"<b>{title}</b>",
-        xaxis_title="Date",
-        yaxis_title="Cumulative Spend (USD)",
-        yaxis_tickformat='$,.0f',
+        xaxis_title="Date", yaxis_title="Cumulative Spend (USD)", yaxis_tickformat='$,.0f',
         legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01)
     )
     return fig
 
-def create_risk_contribution_plot(contribution_df: pd.DataFrame, title: str) -> go.Figure:
-    """Creates an interpretable bar chart for ML risk model contributions."""
-    contribution_df['color'] = contribution_df['contribution'].apply(lambda x: '#d62728' if x > 0 else '#2ca02c') # Red for risk, green for safety
-    fig = px.bar(contribution_df.sort_values('contribution'), x='contribution', y='feature', orientation='h',
-                 title=title, labels={'contribution': "Impact on Risk (Log-Odds)", 'feature': 'Risk Factor'},
-                 text='contribution')
-    fig.update_traces(marker_color=contribution_df['color'], texttemplate='%{text:.3f}', textposition='outside')
-    fig.update_layout(showlegend=False, yaxis_title=None)
-    fig.add_vline(x=0, line_width=1, line_dash="dash", line_color="black")
+def create_evm_performance_chart(df: pd.DataFrame) -> go.Figure:
+    """Creates a bar chart visualizing CPI and SPI for active projects."""
+    df_filtered = df[df['health_status'] != 'Completed'].copy()
+    df_filtered['cpi_color'] = df_filtered['cpi'].apply(lambda x: 'green' if x >= 1.0 else 'red')
+    df_filtered['spi_color'] = df_filtered['spi'].apply(lambda x: 'green' if x >= 1.0 else 'red')
+
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=df_filtered['name'], y=df_filtered['cpi'], name='CPI (Cost Performance)',
+        marker_color=df_filtered['cpi_color'], text=df_filtered['cpi'].round(2)
+    ))
+    fig.add_trace(go.Bar(
+        x=df_filtered['name'], y=df_filtered['spi'], name='SPI (Schedule Performance)',
+        marker_color=df_filtered['spi_color'], text=df_filtered['spi'].round(2)
+    ))
+    fig.add_hline(y=1.0, line_dash="dash", line_color="black", annotation_text="Target")
+    fig.update_layout(
+        barmode='group', title="<b>EVM Performance by Project (CPI & SPI)</b>",
+        yaxis_title="Performance Index ( > 1.0 is Favorable)", xaxis_title=None
+    )
     return fig
 
-def create_resource_forecast_plot(history_df: pd.DataFrame, forecast_df: pd.DataFrame) -> go.Figure:
-    """Plots historical resource demand against an ML forecast with confidence intervals."""
+# --- Resource & Capacity Plots (10++ Enhancement) ---
+
+def create_resource_heatmap(pivot_df: pd.DataFrame, utilization_df: pd.DataFrame) -> go.Figure:
+    """Creates a professional heatmap of resource allocation."""
+    hover_text = []
+    for r_name in pivot_df.index:
+        row_text = []
+        util_pct = utilization_df.loc[utilization_df['name'] == r_name, 'utilization_pct'].iloc[0]
+        for p_name in pivot_df.columns:
+            alloc_hours = pivot_df.loc[r_name, p_name]
+            row_text.append(f"<b>{r_name} on {p_name}</b><br>Hours: {alloc_hours}<br>Total Utilization: {util_pct:.0f}%")
+        hover_text.append(row_text)
+
+    fig = go.Figure(data=go.Heatmap(
+        z=pivot_df.values, x=pivot_df.columns, y=pivot_df.index, colorscale='Reds',
+        hovertemplate='%{customdata}<extra></extra>', customdata=hover_text,
+        text=pivot_df.values.round(0), texttemplate="%{text}"
+    ))
+    fig.update_layout(
+        title="<b>Resource Allocation Heatmap (Hours per Week)</b>",
+        xaxis_title="Project ID", yaxis_title="Resource", height=500, yaxis_autorange='reversed'
+    )
+    return fig
+
+def create_capacity_plan_chart(demand_df: pd.DataFrame, capacity_df: pd.DataFrame, role: str) -> go.Figure:
+    """Visualizes forecasted demand vs. current capacity for a given role."""
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=history_df.index, y=history_df['demand_hours'], mode='lines', name='Historical Demand', line=dict(color='#1f77b4')))
-    fig.add_trace(go.Scatter(x=forecast_df.index, y=forecast_df['yhat'], mode='lines', name='Forecast', line=dict(color='crimson', dash='dash')))
-    fig.add_trace(go.Scatter(x=forecast_df.index, y=forecast_df['yhat_upper'], fill=None, mode='lines', line_color='rgba(255,0,0,0.2)', showlegend=False))
-    fig.add_trace(go.Scatter(x=forecast_df.index, y=forecast_df['yhat_lower'], fill='tonexty', mode='lines', line_color='rgba(255,0,0,0.2)', name='95% Confidence Interval'))
-    fig.update_layout(title="<b>Functional Resource Demand Forecast</b>", xaxis_title="Date", yaxis_title="Required Hours per Month",
+    fig.add_trace(go.Scatter(x=demand_df['ds'], y=demand_df['yhat'], mode='lines', name='Forecasted Demand', line=dict(color='crimson', dash='dash')))
+    fig.add_trace(go.Scatter(x=demand_df['ds'], y=[capacity_df[role]]*len(demand_df), mode='lines', name='Current Capacity', line=dict(color='grey')))
+    fig.update_layout(title=f"<b>Capacity Plan: Forecasted Demand vs. Capacity for {role}</b>",
+                      xaxis_title="Date", yaxis_title="Required Hours per Month",
                       legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01))
+    return fig
+
+# --- Compliance & Governance Plots (10++ Enhancement) ---
+
+def create_dhf_completeness_chart(df: pd.DataFrame) -> go.Figure:
+    """Creates a bar chart showing DHF completeness for active projects."""
+    fig = px.bar(
+        df.sort_values('completeness_pct'),
+        x='completeness_pct', y='name', orientation='h',
+        title='DHF Completeness per Project',
+        labels={'completeness_pct': 'Completeness (%)', 'name': 'Project'},
+        text='completeness_pct'
+    )
+    fig.update_traces(texttemplate='%{text:.1f}%', textposition='inside', marker_color='#1f77b4')
+    fig.update_layout(xaxis=dict(range=[0, 100]), yaxis_title=None)
+    return fig
+
+def create_traceability_sankey(df: pd.DataFrame) -> go.Figure:
+    """Creates a Sankey diagram to visualize requirements traceability."""
+    all_nodes = pd.unique(df[['source', 'target']].values.ravel('K'))
+    node_map = {node: i for i, node in enumerate(all_nodes)}
+    
+    fig = go.Figure(data=[go.Sankey(
+        node=dict(pad=15, thickness=20, line=dict(color="black", width=0.5), label=all_nodes),
+        link=dict(
+            source=df['source'].map(node_map),
+            target=df['target'].map(node_map),
+            value=df['value']
+        )
+    )])
+    fig.update_layout(title_text="<b>Requirements Traceability Flow</b>", font_size=10)
+    return fig
+
+# --- PMO Health & Methodology Plots ---
+
+def create_gate_variance_plot(df: pd.DataFrame) -> go.Figure:
+    """Creates a bar chart showing the variance between planned and actual gate dates."""
+    df = df.copy()
+    df['planned_date'] = pd.to_datetime(df['planned_date'])
+    df['actual_date'] = pd.to_datetime(df['actual_date'])
+    df_filtered = df.dropna(subset=['actual_date'])
+
+    if df_filtered.empty:
+        return go.Figure().update_layout(
+            title_text="No completed gates to analyze.", xaxis_visible=False, yaxis_visible=False,
+            annotations=[dict(text="No Data", xref="paper", yref="paper", showarrow=False, font=dict(size=20))]
+        )
+
+    df_filtered['variance_days'] = (df_filtered['actual_date'] - df_filtered['planned_date']).dt.days
+    avg_variance = df_filtered.groupby('gate_name')['variance_days'].mean().reset_index().sort_values('variance_days')
+
+    fig = px.bar(
+        avg_variance, x='gate_name', y='variance_days',
+        title='Average Gate Schedule Variance (Actual vs. Planned)',
+        labels={'gate_name': 'Phase Gate', 'variance_days': 'Average Variance (Days)'},
+        color='variance_days', color_continuous_scale='RdYlGn_r', text='variance_days'
+    )
+    fig.update_traces(texttemplate='%{text}d', textposition='outside')
+    fig.update_layout(coloraxis_showscale=False, xaxis={'categoryorder':'total descending'})
+    fig.add_hline(y=0, line_width=2, line_dash="dash", line_color="black")
     return fig
 
 def create_project_cluster_plot(df: pd.DataFrame, x_axis: str, y_axis: str) -> go.Figure:
     """Creates a scatter plot to visualize project clusters."""
     fig = px.scatter(
-        df,
-        x=x_axis,
-        y=y_axis,
-        color='cluster',
-        symbol='project_type',
-        hover_name='name',
-        title='Project Archetypes Identified by Clustering',
-        labels={'cluster': 'Project Archetype'}
+        df, x=x_axis, y=y_axis, color='cluster', symbol='project_type', hover_name='name',
+        title='Project Archetypes Identified by Clustering', labels={'cluster': 'Project Archetype'}
     )
     fig.update_traces(marker=dict(size=12, line=dict(width=1, color='DarkSlateGrey')))
     return fig
