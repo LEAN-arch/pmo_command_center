@@ -38,7 +38,8 @@ def render_financial_dashboard(ssm: SPMOSessionStateManager):
 
     # --- Data Loading ---
     projects = ssm.get_data("projects")
-    financials = sm.get_data("financials")
+    # --- FIX: Corrected typo from 'sm' to 'ssm' ---
+    financials = ssm.get_data("financials")
     resources = ssm.get_data("enterprise_resources")
     demand_history = ssm.get_data("resource_demand_history")
 
