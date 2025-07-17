@@ -48,16 +48,18 @@ def render_risk_dashboard(ssm: SPMOSessionStateManager):
         st.warning("No portfolio risk or project data available.")
         return
 
-    # Filter for only 'Risk' items from the RAID log
     df_risks = pd.DataFrame(raid_logs)
+    if df_risks.empty or 'type' not in df_risks.columns:
+        st.success("No risk items are currently logged in the portfolio RAID log.", icon="✅")
+        return
+        
     df_risks = df_risks[df_risks['type'] == 'Risk'].copy()
     
     if df_risks.empty:
         st.success("No open risks are currently logged in the portfolio RAID log.", icon="✅")
         return
 
-    # Assume probability and impact are embedded in the description or a separate field if model was richer
-    # For demo, we'll assign them randomly if not present.
+    # For demo, assign random probability/impact if not in the data model
     if 'probability' not in df_risks.columns:
         df_risks['probability'] = [random.randint(1, 5) for _ in range(len(df_risks))]
     if 'impact' not in df_risks.columns:
