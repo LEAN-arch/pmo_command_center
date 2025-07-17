@@ -31,7 +31,6 @@ def render_resource_dashboard(ssm: SPMOSessionStateManager):
     total_alloc_individual = alloc_df.groupby('resource_name')['allocated_hours_week'].sum().reset_index()
     utilization_df = pd.merge(res_df, total_alloc_individual, left_on='name', right_on='resource_name', how='left').fillna(0)
     
-    # Ensure capacity is not zero to avoid division errors
     utilization_df['utilization_pct'] = utilization_df.apply(
         lambda row: (row['allocated_hours_week'] / row['capacity_hours_week']) * 100 if row['capacity_hours_week'] > 0 else 0,
         axis=1
@@ -56,7 +55,6 @@ def render_resource_dashboard(ssm: SPMOSessionStateManager):
     st.subheader("Resource Allocation Heatmap")
     st.info("This heatmap visualizes the current weekly hour allocation for each resource across active projects. Red squares indicate heavy allocation, which can be a source of project risk.", icon="🔥")
     
-    # Create pivot table for the heatmap
     pivot_df = alloc_df.pivot_table(index='resource_name', columns='project_id', values='allocated_hours_week').fillna(0)
     if not pivot_df.empty:
         fig_heatmap = create_resource_heatmap(pivot_df, utilization_df)
