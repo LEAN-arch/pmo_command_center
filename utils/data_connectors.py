@@ -70,7 +70,7 @@ def _initialize_data_cache():
         {"quarter": "Q4 2023", "metric": "DHF Completeness at Gate", "value": 97},
     ]
 
-    # --- Enriched & Expanded Core Data Models ---
+    # (Other data structures remain the same as the previous correct version...)
     _DATA_CACHE['strategic_goals'] = [
         {"id": "SG-01", "goal": "Win High-Throughput Rheumatology Segment"},
         {"id": "SG-02", "goal": "Achieve Full IVDR Compliance"},
@@ -102,13 +102,7 @@ def _initialize_data_cache():
         {"product_name": "BIO-FLASH® System & Reagents", "open_capas": 1, "complaint_rate_ytd": 0.21},
     ]
     
-    # ENHANCEMENT: More realistic QMS KPIs
-    _DATA_CACHE['qms_kpis'] = {
-        "open_capas": 8, 
-        "overdue_capas": 2, 
-        "internal_audit_findings_open": 5, 
-        "overdue_training_records": 12
-    }
+    _DATA_CACHE['qms_kpis'] = { "open_capas": 8, "overdue_capas": 2, "internal_audit_findings_open": 5, "overdue_training_records": 12 }
     
     _DATA_CACHE['raid_logs'] = [
         {"log_id": "R-001", "project_id": "NPD-001", "type": "Risk", "description": "Key sensor supplier fails to meet quality specs.", "owner": "Henry Ford", "status": "Mitigating", "due_date": (date.today() + timedelta(days=30)).isoformat(), "probability": 4, "impact": 5},
@@ -116,6 +110,34 @@ def _initialize_data_cache():
         {"log_id": "D-001", "project_id": "NPD-002", "type": "Decision", "description": "Proceed with TLS 1.3 for data transmission security.", "owner": "Jane Doe", "status": "Closed", "due_date": (date.today() - timedelta(days=20)).isoformat()},
     ]
     
+    # --- FIX: Expanded resource demand history to cover all roles ---
+    demand_history = []
+    # Get all unique roles from the enterprise resource pool
+    roles_in_pool = {res['role'] for res in _DATA_CACHE['enterprise_resources']}
+    
+    # Define some plausible base demand and trends for each role to make forecasts interesting
+    role_demand_profiles = {
+        "Assay R&D": {"base": 160, "trend": 5},
+        "Software R&D": {"base": 120, "trend": 3},
+        "Instrument R&D": {"base": 100, "trend": 2},
+        "RA/QA": {"base": 80, "trend": 4},
+        "Clinical Affairs": {"base": 50, "trend": 1},
+        "Operations": {"base": 70, "trend": 0},
+        "Systems Engineering": {"base": 60, "trend": 3},
+    }
+
+    # Generate 24 months of historical data for each role
+    for role in roles_in_pool:
+        profile = role_demand_profiles.get(role, {"base": 40, "trend": 1}) # Default profile for any new roles
+        for i in range(24, 0, -1):
+            d = date.today() - timedelta(days=i*30)
+            # Simulate a base demand, a trend over time, and some random monthly noise
+            demand = profile['base'] + i * profile['trend'] + random.randint(-20, 20)
+            demand_history.append({"date": d.isoformat(), "role": role, "demand_hours": max(0, demand)}) # Ensure demand is not negative
+    
+    _DATA_CACHE['resource_demand_history'] = demand_history
+
+    # (Other data structures like allocations, collaborations, etc. are listed here in the full file)
     _DATA_CACHE['milestones'] = [
         {"project_id": "NPD-001", "milestone": "V&V Start", "due_date": (base_date + timedelta(days=450)).isoformat(), "status": "At Risk"},
         {"project_id": "NPD-001", "milestone": "Design Freeze", "due_date": (base_date + timedelta(days=400)).isoformat(), "status": "Completed"},
@@ -155,7 +177,6 @@ def _initialize_data_cache():
         {"project_id": "LCM-H01", "gate_name": "Gate 2: Feasibility", "planned_date": (base_date + timedelta(days=160)).isoformat(), "actual_date": (base_date + timedelta(days=160)).isoformat()},
     ]
     
-    # Generate some plausible financial data points for burn charts
     financials = []
     for p in _DATA_CACHE['projects']:
         if p['health_status'] != 'Completed':
@@ -172,17 +193,8 @@ def _initialize_data_cache():
                          financials.append({"project_id": p['id'], "date": point_date.isoformat(), "type": "Actuals", "amount": p['actuals_usd'] * (i / num_points) * random.uniform(0.9, 1.1)})
 
     _DATA_CACHE['financials'] = financials
-    
-    # Generate more data for time series forecasting
-    demand_history = []
-    for i in range(24, 0, -1):
-        d = date.today() - timedelta(days=i*30)
-        demand_history.append({"date": d.isoformat(), "role": "Assay R&D", "demand_hours": 160 + i*5 + random.randint(-20, 20)})
-        demand_history.append({"date": d.isoformat(), "role": "Software R&D", "demand_hours": 120 + i*3 + random.randint(-15, 15)})
-    _DATA_CACHE['resource_demand_history'] = demand_history
 
 # --- Connector Functions (Public API of this module) ---
-# These functions provide a stable interface for the rest of the application to get data.
 def get_projects_from_erp(): _initialize_data_cache(); return _DATA_CACHE.get('projects', [])
 def get_financials_from_erp(): _initialize_data_cache(); return _DATA_CACHE.get('financials', [])
 def get_pmo_budget_from_finance(): _initialize_data_cache(); return _DATA_CACHE.get('pmo_department_budget', {})
