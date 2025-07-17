@@ -57,7 +57,6 @@ def render_portfolio_dashboard(ssm: SPMOSessionStateManager):
     st.subheader("Executive KPIs")
     total_budget = df['budget_usd'].sum()
     total_actuals = df['actuals_usd'].sum()
-    at_risk_count = len(active_df[active_df['health_status'] == "At Risk"])
     open_capas = qms_kpis.get("open_capas", 0)
 
     kpi_cols = st.columns(4)
@@ -119,9 +118,9 @@ def render_portfolio_dashboard(ssm: SPMOSessionStateManager):
             'name', 'project_type', 'phase', 'pm', 'health_score', 'cpi', 'spi', 'risk_score'
         ]].copy()
 
-        # Apply styling
-        styled_df = display_df.style.applymap(
-            lambda x: color_health_score(x), subset=['health_score']
+        # *** FIX for FutureWarning: Use .map() instead of .applymap() ***
+        styled_df = display_df.style.map(
+            color_health_score, subset=['health_score']
         ).format({
             'health_score': '{:.1f}',
             'cpi': '{:.2f}',
