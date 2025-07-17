@@ -1,4 +1,3 @@
-# pmo_command_center/dashboards/risk_compliance.py
 """
 This module renders the Risk & QMS Compliance dashboard. It provides a
 portfolio-level view of aggregated project risks and key indicators of
@@ -7,7 +6,6 @@ Quality Management System health, crucial for a regulated environment like Werfe
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import random
 from utils.pmo_session_state_manager import SPMOSessionStateManager
 
 def render_risk_dashboard(ssm: SPMOSessionStateManager):
@@ -30,16 +28,16 @@ def render_risk_dashboard(ssm: SPMOSessionStateManager):
 
     kpi_cols = st.columns(4)
     kpi_cols[0].metric("Open CAPAs", qms_kpis.get("open_capas", 0), help="Total open Corrective and Preventive Actions per **21 CFR 820.100**. High numbers may indicate systemic issues.")
-    kpi_cols[1].metric("Overdue CAPAs", qms_kpis.get("overdue_capas", 0), delta=str(qms_kpis.get("overdue_capas", 0)), delta_color="inverse")
-    kpi_cols[2].metric("Open Internal Audit Findings", qms_kpis.get("internal_audit_findings_open", 0), delta=str(qms_kpis.get("internal_audit_findings_open", 0)), delta_color="inverse", help="Open findings from internal QMS audits per **21 CFR 820.22**.")
-    kpi_cols[3].metric("Overdue Training Records", qms_kpis.get("overdue_training_records", 0), delta=str(qms_kpis.get("overdue_training_records", 0)), delta_color="inverse", help="Ensures staff are qualified for their roles per QMS requirements.")
+    kpi_cols[1].metric("Overdue CAPAs", qms_kpis.get("overdue_capas", 0), delta=str(qms_kpis.get("overdue_capas", 0)) if qms_kpis.get("overdue_capas", 0) > 0 else None, delta_color="inverse")
+    kpi_cols[2].metric("Open Internal Audit Findings", qms_kpis.get("internal_audit_findings_open", 0), delta=str(qms_kpis.get("internal_audit_findings_open", 0)) if qms_kpis.get("internal_audit_findings_open", 0) > 0 else None, delta_color="inverse", help="Open findings from internal QMS audits per **21 CFR 820.22**.")
+    kpi_cols[3].metric("Overdue Training Records", qms_kpis.get("overdue_training_records", 0), delta=str(qms_kpis.get("overdue_training_records", 0)) if qms_kpis.get("overdue_training_records", 0) > 0 else None, delta_color="inverse", help="Ensures staff are qualified for their roles per QMS requirements.")
 
     st.divider()
 
     # --- Portfolio Risk Matrix ---
     st.subheader("Portfolio Risk Landscape")
     st.info(
-        "This risk matrix plots the most significant risks from across the entire portfolio, consistent with **ISO 14971** (Application of risk management to medical devices). "
+        "This risk matrix plots the most significant individual risks from across the entire portfolio, consistent with **ISO 14971** (Application of risk management to medical devices). "
         "The **Top-Right Quadrant** contains high-probability, high-impact risks that require immediate executive attention.",
         icon="⚠️"
     )
@@ -48,24 +46,22 @@ def render_risk_dashboard(ssm: SPMOSessionStateManager):
         st.warning("No portfolio risk or project data available.")
         return
 
-    df_risks = pd.DataFrame(raid_logs)
-    if df_risks.empty or 'type' not in df_risks.columns:
-        st.success("No risk items are currently logged in the portfolio RAID log.", icon="✅")
+    df_raid = pd.DataFrame(raid_logs)
+    if df_raid.empty or 'type' not in df_raid.columns:
+        st.success("No items are currently logged in the portfolio RAID log.", icon="✅")
         return
-        
-    df_risks = df_risks[df_risks['type'] == 'Risk'].copy()
+    
+    # Filter for only open 'Risk' items
+    df_risks = df_raid[(df_raid['type'] == 'Risk') & (df_raid['status'] != 'Closed')].copy()
     
     if df_risks.empty:
         st.success("No open risks are currently logged in the portfolio RAID log.", icon="✅")
         return
 
-    # For demo, assign random probability/impact if not in the data model
-    if 'probability' not in df_risks.columns:
-        df_risks['probability'] = [random.randint(1, 5) for _ in range(len(df_risks))]
-    if 'impact' not in df_risks.columns:
-        df_risks['impact'] = [random.randint(1, 5) for _ in range(len(df_risks))]
-
+    # Calculate Risk Priority Number (RPN)
     df_risks['rpn'] = df_risks['probability'] * df_risks['impact']
+    
+    # Merge with project names for context
     proj_df = pd.DataFrame(projects)
     df_risks = pd.merge(df_risks, proj_df[['id', 'name']], left_on='project_id', right_on='id', how='left')
 
@@ -86,13 +82,17 @@ def render_risk_dashboard(ssm: SPMOSessionStateManager):
         yaxis=dict(title="Probability (1-5)", range=[0.5, 5.5], dtick=1),
         legend_title="Project"
     )
+    # Add quadrant lines
+    fig.add_vline(x=3, line_width=1, line_dash="dash", line_color="gray")
+    fig.add_hline(y=3, line_width=1, line_dash="dash", line_color="gray")
+
     st.plotly_chart(fig, use_container_width=True)
 
     # --- Detailed Risk Register View ---
     st.subheader("Active Risk Register")
     st.caption("This is a filtered view of all items logged as 'Risk' in the central RAID Log.")
     st.dataframe(
-        df_risks[['log_id', 'name', 'description', 'status', 'probability', 'impact', 'owner', 'due_date']],
+        df_risks[['log_id', 'name', 'description', 'status', 'probability', 'impact', 'rpn', 'owner', 'due_date']].sort_values('rpn', ascending=False),
         use_container_width=True,
         hide_index=True,
         column_config={
@@ -100,6 +100,7 @@ def render_risk_dashboard(ssm: SPMOSessionStateManager):
             "name": "Project",
             "description": st.column_config.TextColumn("Description", width="large"),
             "probability": st.column_config.NumberColumn("P", help="Probability (1-5)"),
-            "impact": st.column_config.NumberColumn("I", help="Impact (1-5)")
+            "impact": st.column_config.NumberColumn("I", help="Impact (1-5)"),
+            "rpn": st.column_config.NumberColumn("RPN", help="Risk Priority Number (P*I)")
         }
     )
