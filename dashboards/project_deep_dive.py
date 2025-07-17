@@ -45,7 +45,7 @@ def render_project_deep_dive(ssm: SPMOSessionStateManager):
 
     st.divider()
     st.subheader(f"Analysis for: {selected_project_name} ({project_id})")
-    st.markdown(f"**Description:** *{selected_project['description']}*")
+    st.markdown(f"**Description:** *{selected_project.get('description', 'N/A')}*")
 
     # --- Top-Level Analysis: Predictions & Performance ---
     col1, col2 = st.columns(2)
@@ -69,7 +69,7 @@ def render_project_deep_dive(ssm: SPMOSessionStateManager):
             st.metric(
                 "AI-Predicted Estimate at Completion (EAC)",
                 f"${predicted_eac:,.0f}",
-                delta=f"${(predicted_eac - selected_project['budget_usd']):,.0f} vs Budget",
+                delta=f"${(predicted_eac - selected_project.get('budget_usd', 0)):,.0f} vs Budget",
                 delta_color="inverse",
                 help="Forecasts the project's final cost based on its current performance and characteristics."
             )
@@ -78,8 +78,8 @@ def render_project_deep_dive(ssm: SPMOSessionStateManager):
         st.info("#### 📈 Earned Value Performance", icon="📊")
         with st.container(border=True, height=350):
             kpi_cols = st.columns(2)
-            kpi_cols[0].metric("Cost Performance Index (CPI)", f"{selected_project['cpi']:.2f}", help=">1.0 is Favorable (Under Budget)")
-            kpi_cols[1].metric("Schedule Perf. Index (SPI)", f"{selected_project['spi']:.2f}", help=">1.0 is Favorable (Ahead of Schedule)")
+            kpi_cols[0].metric("Cost Performance Index (CPI)", f"{selected_project.get('cpi', 0):.2f}", help=">1.0 is Favorable (Under Budget)")
+            kpi_cols[1].metric("Schedule Perf. Index (SPI)", f"{selected_project.get('spi', 0):.2f}", help=">1.0 is Favorable (Ahead of Schedule)")
             st.caption("Objective metrics for cost and schedule efficiency.")
 
     # --- Detailed Tabs ---
