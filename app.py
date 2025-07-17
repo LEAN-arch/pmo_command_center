@@ -1,4 +1,3 @@
-# pmo_command_center/app.py
 """
 Main application entry point for the Werfen Autoimmunity Division's sPMO Command Center.
 
@@ -15,16 +14,20 @@ import pandas as pd
 import streamlit as st
 
 # --- Robust Path Correction ---
+# Ensures the application can be run from different directories
 try:
     current_file_path = os.path.abspath(__file__)
     project_root = os.path.dirname(os.path.dirname(current_file_path))
     if project_root not in sys.path:
         sys.path.insert(0, project_root)
 except Exception:
-    if os.getcwd() not in sys.path:
-        sys.path.insert(0, os.getcwd())
+    # Fallback for environments where __file__ is not defined (e.g., some notebooks)
+    project_root = os.getcwd()
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
 
 # --- Local Application Imports ---
+# Centralized imports for all dashboard modules
 try:
     from utils.pmo_session_state_manager import SPMOSessionStateManager
     from dashboards.portfolio_dashboard import render_portfolio_dashboard
@@ -72,6 +75,7 @@ def main():
     st.sidebar.image("https://www.werfen.com/corp/werfen-web/themes/werfen/images/logo-werfen-blue.svg", width=200)
     st.sidebar.title("sPMO Workspaces")
 
+    # ENHANCEMENT: Consolidated and enhanced dashboard navigation
     dashboards = {
         "Executive Portfolio": {
             "function": render_portfolio_dashboard,
@@ -88,9 +92,9 @@ def main():
             "caption": "Budget, EVM, and Resource Forecasting",
             "icon": "💰"
         },
-        "Strategic Alignment": {
+        "Strategic Scenario Planning": {
             "function": render_strategy_dashboard,
-            "caption": "Goal Alignment and Future Initiatives",
+            "caption": "Goal Alignment and 'What-If' Sandbox",
             "icon": "🎯"
         },
         "Governance & Reporting": {
@@ -115,7 +119,7 @@ def main():
         },
         "PMO Health & Maturity": {
             "function": render_pmo_health_dashboard,
-            "caption": "Measure PMO Process Effectiveness",
+            "caption": "PMO Budget, Team, and Process Effectiveness",
             "icon": "📈"
         },
         "Cross-Entity Collaboration": {
