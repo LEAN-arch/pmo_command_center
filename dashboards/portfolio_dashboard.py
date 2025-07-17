@@ -15,7 +15,7 @@ def calculate_health_score(project_row: pd.Series) -> float:
     weights = {'spi': 0.4, 'cpi': 0.4, 'risk': 0.2}
     spi_score = np.clip(project_row.get('spi', 0) * 100, 0, 100)
     cpi_score = np.clip(project_row.get('cpi', 0) * 100, 0, 100)
-    risk_score_val = project_row.get('risk_score', 5) # Default to neutral risk if not present
+    risk_score_val = project_row.get('risk_score', 5)
     risk_score = (10 - risk_score_val) / 9 * 100
     weighted_score = (
         spi_score * weights['spi'] +
