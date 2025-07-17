@@ -11,7 +11,8 @@ from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.enum.shapes import MSO_SHAPE
 from pptx.dml.color import RGBColor
-from pptx.enum.text import MSO_ALIGN, MSO_VERTICAL_ANCHOR
+# --- FIX: Corrected the import from MSO_ALIGN to PP_ALIGN ---
+from pptx.enum.text import PP_ALIGN, MSO_VERTICAL_ANCHOR
 from datetime import date
 import plotly.io as pio
 import plotly.express as px
@@ -25,7 +26,15 @@ def set_cell_text(cell, text, bold=False, font_size=10, align='LEFT'):
     run = p.add_run()
     run.text = str(text)
     
-    p.alignment = getattr(MSO_ALIGN, align, MSO_ALIGN.LEFT)
+    # --- FIX: Updated the logic to use the correct PP_ALIGN enumeration ---
+    alignment_map = {
+        'LEFT': PP_ALIGN.LEFT,
+        'CENTER': PP_ALIGN.CENTER,
+        'RIGHT': PP_ALIGN.RIGHT,
+        'JUSTIFY': PP_ALIGN.JUSTIFY
+    }
+    p.alignment = alignment_map.get(align.upper(), PP_ALIGN.LEFT)
+    
     font = run.font
     font.name = 'Calibri'
     font.size = Pt(font_size)
@@ -55,7 +64,7 @@ def generate_project_status_report(project_details: dict, milestones_df: pd.Data
     date_shape = slide.shapes.add_textbox(Inches(12.5), Inches(0.35), Inches(3), Inches(0.5))
     p_date = date_shape.text_frame.paragraphs[0]
     p_date.text = f"Report Date: {date.today().strftime('%Y-%m-%d')}"
-    p_date.font.size, p_date.alignment = Pt(14), MSO_ALIGN.RIGHT
+    p_date.font.size, p_date.alignment = Pt(14), PP_ALIGN.RIGHT
 
     # --- KPIs Table ---
     kpi_title = slide.shapes.add_textbox(Inches(0.5), Inches(1.2), Inches(7.5), Inches(0.5))
@@ -185,6 +194,7 @@ def generate_board_ready_deck(projects_df: pd.DataFrame, goals_df: pd.DataFrame,
 
     # --- Slide 3: Portfolio Landscape Chart ---
     slide = prs.slides.add_slide(content_slide_layout)
+    title = slide.shapes.title
     title.text = "Portfolio Landscape: Strategy vs. Risk"
     fig_bubble = plot_utils.create_portfolio_bubble_chart(projects_df)
     add_plotly_fig_to_slide(fig_bubble, slide, Inches(1.5), Inches(1.5), Inches(13), Inches(7))
